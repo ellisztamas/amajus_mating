@@ -5,15 +5,14 @@ from time import time, strftime
 from sys import stdout
 from perform_GND_MCMC import *
 
-
-filename = 'dispersal_gaussian'
+filename = 'test'
 # Set up values to test
-np.random.seed(354)
-nreps = 33333
-thin=100
-starting_params = [354, 2.0, 0.8]
+np.random.seed(2092)
+nreps = 5
+thin=3
 
-print('\nMCMC analysis for 3-parameter pollen dispersal in A. majus, starting with a gaussian distribution.')
+
+print('\nMCMC analysis for 3-parameter pollen dispersal in A. majus, starting with with random draws for parameter values.')
 print('Analysis begun {}.\n\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
 t0 = time()
 
@@ -31,9 +30,9 @@ params = np.array([
     np.random.uniform(0.001, 1, size=nreps)  # Mixture paramter for gen. normal vs. uniform.
 ])
 params = params.T
-params[0] = starting_params
+#params[0] = starting_params
 
 # Run the Markov chain
 print('MCMC set up. Beginning Markov chain...\n')
-perform_GND_MCMC(distance_matrix, patlik, params, 2, 'filename')
+perform_GND_MCMC(distance_matrix, patlik, params, 2, filename)
 print('\nMCMC completed {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S", )))
