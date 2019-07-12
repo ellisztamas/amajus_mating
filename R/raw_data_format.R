@@ -1,5 +1,8 @@
 # Import the monster AR dataset
-core <- read.csv('~/Documents/Antirrhinum/core_data/FinalGenoEcol_short_nuc.csv', stringsAsFactors = F)
+core <- read.csv(
+    '/datadisk/Seafile/HZanalyses/data/final/FinalGenoEcol_short_int.csv',
+    stringsAsFactors = F
+  )
 
 # L0057 is not recorded as alive in 2012, but it must have been because I collected seed from it.
 which(sapply(strsplit(core$RametIDs, ","), function(x) "L0057" %in% x))
@@ -22,21 +25,30 @@ gps$Easting  <- gps$Easting - mean(gps$Easting)
 gps$Northing <- gps$Northing - mean(gps$Northing)
 write.csv(gps, 'data/GPS_positions.csv', row.names = F)
 
-sum(as2012$phenoCat_final == -9) # there are 358 plants with no phenotype data
-# 13 genets have constituent ramets with conflicting phenotypes.
-sum(as2012$phenoCat_final %in% c("WO;Y", "FR;FO","WR;WO","FR;WR;FR", "WR;FO;WR", "WO;WR","FR;FO;FR"))
-# Assign Rosea genptypes where possible.
-as2012$rosea[as2012$phenoCat_final %in% c("FR", "FO", "FR;FO", "FR;FO;FR")] <- "R/R"
-as2012$rosea[as2012$phenoCat_final %in% c("WR", "WO", "WR;WO", "WO;WR")] <- "R/r"
-as2012$rosea[as2012$phenoCat_final %in% c("W", "Y")] <- "r/r"
-sum(is.na(as2012$rosea)) # 361 plants not assigned.
-# Assign Sulfurea genotypes where possible
-as2012$sulf[as2012$phenoCat_final %in% c("FR", "WR", "W")] <- "S/+"
-as2012$sulf[as2012$phenoCat_final %in% c("FO", "WO", "Y", "WO;Y")] <- "s/s"
-sum(is.na(as2012$sulf)) # 370 plants not assigned.
-# write to disk
-ros_sulf <- data.frame(id = as2012$PlantID_final, Ros = as2012$rosea, Sulf=as2012$sulf)
-write.csv(ros_sulf, 'data/rosea_sulfurea.csv')
+sum(as2012$phenoCat_final == -9) # there are 47 plants with no phenotype data
+# J1246 donated seed, but has a missing colour phenotype. I can fill this in from my field notes.
+as2012$phenoCat_final[as2012$PlantID_final == "J1246"] <- "W"
+
+# Run colour scores through function to assign category.
+ros_sulf <- cbind(
+  as2012$PlantID_final,
+  snaptools::categorise_flower_scores(as2012$Red_final, as2012$Yellow_final)
+)
+
+# # 13 genets have constituent ramets with conflicting phenotypes.
+# sum(as2012$phenoCat_final %in% c("WO;Y", "FR;FO","WR;WO","FR;WR;FR", "WR;FO;WR", "WO;WR","FR;FO;FR"))
+# # Assign Rosea genotypes where possible.
+# as2012$rosea[as2012$phenoCat_final %in% c("FR", "FO", "FR;FO", "FR;FO;FR")] <- "R/R"
+# as2012$rosea[as2012$phenoCat_final %in% c("WR", "WO", "WR;WO", "WO;WR")] <- "R/r"
+# as2012$rosea[as2012$phenoCat_final %in% c("W", "Y")] <- "r/r"
+# sum(is.na(as2012$rosea)) # 361 plants not assigned.
+# # Assign Sulfurea genotypes where possible
+# as2012$sulf[as2012$phenoCat_final %in% c("FR", "WR", "W")] <- "S/+"
+# as2012$sulf[as2012$phenoCat_final %in% c("FO", "WO", "Y", "WO;Y")] <- "s/s"
+# sum(is.na(as2012$sulf)) # 370 plants not assigned.
+# # write to disk
+# ros_sulf <- data.frame(id = as2012$PlantID_final, Ros = as2012$rosea, Sulf=as2012$sulf)
+write.csv(ros_sulf, 'data/rosea_sulfurea.csv', row.names = F)
 
 # import offspring data. They are in two files from separate typing efforts
 offs1 <- read.csv('data/offspring_SNP_raw_data_1.csv', stringsAsFactors = F)
