@@ -1,10 +1,10 @@
 import numpy as np
 from faps import *
 import pandas as pd
-from utils import *
+from dispersal_functions import *
 
-progeny = read_genotypes('../data/offspring_2012_genotypes.csv', mothers_col=1, genotype_col=2)
-adults  = read_genotypes('../data/parents_2012_genotypes.csv')
+progeny = read_genotypes('../data_processed/offspring_2012_genotypes.csv', mothers_col=1, genotype_col=2)
+adults  = read_genotypes('../data_processed/parents_2012_genotypes.csv')
 
 # data cleaning. See `SNP checking and cleaning.ipynb` for details
 # remove individuals with >7.5% midding data
@@ -31,16 +31,22 @@ mother_id = np.array([np.unique(x.mothers) for x in progeny]).squeeze()
 # Sanity check to ensure maternal IDs line up.
 all(mother_id == np.array([np.unique(x.names) for x in mothers]).squeeze())
 
-allele_freqs = adults.allele_freqs() # population allele frequencies
+#allele_freqs = adults.allele_freqs() # population allele frequencies
 mu = 0.0013 # genotype error rate.
+del ox, i, h, lx, r
+print('Genotype data imported.')
+
+
 
 # Import GPS data
-gps         = pd.read_csv("../data/GPS_positions.csv", index_col=0)
+gps         = pd.read_csv("../data_processed/GPS_positions.csv", index_col=0)
 gps         = gps.loc[adults.names] # reorder to match cleaned SNP data
 gps         = gps[['Easting','Northing']] # remove the column for altitude. We don't need that here.
 gps_mothers = gps.loc[mother_id]
-
-# create a matrix of distance_matrixances between 
+# create a matrix of distance_matrixances between
 distance_matrix = (gps_mothers.values[np.newaxis] - gps.values[:, np.newaxis])**2
 distance_matrix = distance_matrix.sum(axis=2)
 distance_matrix = np.sqrt(distance_matrix).T
+
+del gps, gps_mothers # we don't need these anymore.
+print('GPS data imported.')
