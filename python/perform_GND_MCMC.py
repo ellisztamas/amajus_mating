@@ -26,7 +26,7 @@ def perform_GND_MCMC(distance_matrix, paternity_array, parameters, thin, filenam
             new_model[p] = parameters[i,p]
             
             # Probability of drawing each male under GND dispersal
-            prob_drawn = dispersal_GND(x=distance_matrix,  a=new_model[0], b=new_model[1], c=new_model[2])
+            prob_drawn = dispersal_GND(x=distance_matrix,  scale=new_model[0], shape=new_model[1], w=new_model[2])
             # add dispersal information to paternityArrays
             df = [paternity_array[s].add_covariate(prob_drawn[s]) for s in range(len(paternity_array))]
             del df
