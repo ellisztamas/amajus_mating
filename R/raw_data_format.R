@@ -1,3 +1,5 @@
+library("snaptools")
+
 # Import the monster AR dataset
 core <- read.csv(
     '/datadisk/Seafile/HZanalyses/data/final/FinalGenoEcol_short_int.csv',
@@ -27,13 +29,17 @@ write.csv(gps, 'data_processed//GPS_positions.csv', row.names = F)
 
 sum(as2012$phenoCat_final == -9) # there are 47 plants with no phenotype data
 # J1246 donated seed, but has a missing colour phenotype. I can fill this in from my field notes.
-as2012$phenoCat_final[as2012$PlantID_final == "J1246"] <- "W"
+as2012$Red_final[   as2012$PlantID_final == "J1246"] <- 1
+as2012$Yellow_final[as2012$PlantID_final == "J1246"] <- 1
 
 # Run colour scores through function to assign category.
 ros_sulf <- cbind(
-  as2012$PlantID_final,
+  id = as2012$PlantID_final,
   snaptools::categorise_flower_scores(as2012$Red_final, as2012$Yellow_final)
 )
+table(ros_sulf$flower_colour)
+
+
 
 # # 13 genets have constituent ramets with conflicting phenotypes.
 # sum(as2012$phenoCat_final %in% c("WO;Y", "FR;FO","WR;WO","FR;WR;FR", "WR;FO;WR", "WO;WR","FR;FO;FR"))
@@ -59,8 +65,8 @@ all(offs1$ID == offs2$ID)
 offs <- cbind(offs1, offs2[-1])
 rm(offs1, offs2)
 # convert to FAPS format
-source('R/lgc2faps.R')
-offs <- lgc2faps(offs)
+#source('R/lgc2faps.R')
+offs <- snaptools::lgc2faps(offs)
 
 # pull out the names of the mothers.
 offs$mothers <- sapply(strsplit(offs$ID, "_"), function(x) x[[1]])

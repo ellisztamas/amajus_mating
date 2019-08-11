@@ -1,4 +1,4 @@
-"as2012$PlantID_final","flower_colour","rosea","sulfurea"
+"id","flower_colour","rosea","sulfurea"
 "M0821","FR","R/R","S/+"
 "M0843","FR","R/R","S/+"
 "M1003","Ye","r/r","s/s"
@@ -1779,7 +1779,7 @@
 "M0432","FO","R/R","s/s"
 "J0171","WR","R/r","S/+"
 "J0422","FR","R/R","S/+"
-"J1246",NA,NA,NA
+"J1246","Wh","r/r","S/+"
 "J1251","FR","R/R","S/+"
 "K0133","FO","R/R","s/s"
 "K0475","FR","R/R","S/+"
