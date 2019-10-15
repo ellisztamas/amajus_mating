@@ -2,7 +2,7 @@ library("snaptools")
 
 # Import the monster AR dataset
 core <- read.csv(
-    '/datadisk/Seafile/HZanalyses/data/final/FinalGenoEcol_short_int.csv',
+    '/datadisk/Seafile/HZanalyses/data/final/FinalGenoEcol_short_nuc.csv',
     stringsAsFactors = F
   )
 
@@ -81,7 +81,10 @@ offs$mothers <- as2012$PlantID_final[mx]
 # The new ones are in David's summary table of SNPs
 snp_summary <- read.csv('/datadisk/Seafile/HZanalyses/data/base/genetic/shortSummarySNPsAdj.csv', stringsAsFactors = F)
 # line up SNP names between parents and offspring
-colnames(offs) <- c("ID", na.omit(snp_summary$LocusName[match(colnames(offs), snp_summary$LocusNameOLD)]), "mothers")
+lnames <- na.omit(
+  snp_summary$LocusName[match(colnames(offs), snp_summary$LocusNameOLD)]
+)
+colnames(offs) <- c("ID", lnames, "mothers")
 # Get a column of parent genotypes in the same order as the offspring genotypes
 px <- intersect(colnames(offs), colnames(as2012)) # common set of SNPs.
 parents <- lgc2faps(as2012[,c("PlantID_final",px)], "/")
