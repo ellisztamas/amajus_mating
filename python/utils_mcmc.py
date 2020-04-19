@@ -1,75 +1,4 @@
-from time import time
 import numpy as np
-from scipy.special import gamma
-
-def generalised_normal_PDF(x, scale, shape, gamma_b=None):
-    """
-    Calculate the PDF of the generalised normal distribution.
-
-    Parameters
-    ----------
-    x: vector
-        Vector of deviates from the mean.
-    scale: float
-        Scale parameter.
-    shape: float
-        Shape parameter
-    gamma_b: float, optional
-        To speed up calculations, values for Euler's gamma for 1/shape
-        can be calculated ahead of time and included as a vector.
-    """
-    xv = np.copy(x)
-    if gamma_b:
-        return (shape/(2 * scale * gamma_b ))      * np.exp(-(xv/scale)**shape)
-    else:
-        return (shape/(2 * scale * gamma(1.0/shape) )) * np.exp(-(xv/scale)**shape)
-
-def dispersal_GND(x, scale, shape, w):
-    """
-    Calculate a probability that each candidate is a sire
-    assuming assuming he is either drawn at random form the
-    population, or from a generalised normal function of his
-    distance from each mother. The relative contribution of the
-    two distributions is controlled by mixture parameter c.
-
-    Parameters
-    ----------
-    x: vector
-        Vector of deviates from the mean.
-    scale: float
-        Scale parameter.
-    shape: float
-        Shape parameter
-    w: float between 0 and 1.
-        The proportion of probability mass assigned to the
-        generalised normal function.
-    """
-    prob_GND = generalised_normal_PDF(x, scale, shape)
-    prob_GND = prob_GND / prob_GND.sum(axis=1)[:, np.newaxis]
-
-    prob_drawn = (prob_GND * w) + ((1-w) / x.shape[1])
-    prob_drawn = prob_drawn / prob_drawn.sum(1, keepdims=True)
-    prob_drawn = np.log(prob_drawn)
-
-    return prob_drawn
-
-def stdev_GND(scale, shape):
-    """
-    Calculate the 2nd moment of the genealised normal distribution.
-
-    Parameters
-    ----------
-    scale: float
-        Scale parameter.
-    shape: float
-        Shape parameter
-
-    Returns
-    -------
-    Float.
-    """
-    return (scale * gamma(2.0/shape)) / (1.0/shape)
-
 
 def update_parameters(current_model, sigma):
     """
@@ -149,40 +78,6 @@ def assortment_probs(focal, candidates, params):
         return ass_matrix
     else:
         raise ValueError("Not all phenotypes values present in the focal phenotypes have an assortment parameter.")
-
-# def assortment_probs(phenotypes, a):
-#   """
-#     Calculate the log probabilities of mating between pairs of individuals
-#     based on an assortment parameter between two discrete phenotypes.
-#
-#     Parameters
-#     ----------
-#     phenotypes: dict
-#         Information about combinations of phenotypes from `setup_phenotypes`.
-#     a: float
-#         Assortment parameter between 0 and 1. The probability that a genotype
-#         mates with the same genotype.
-#
-#     Returns
-#     -------
-#     Array of log probabilities of mating with a row for each mother and a
-#     column for each candidate.
-#     """
-# # For candidates with missing data, draw True/False matches at random.
-# replacements = np.random.binomial(1, 0.5, size=len(phenotypes['missing'])) == 1
-# # Insert these replacements into the array of phenotypesotype matches.
-# for i, j in zip(phenotypes['missing'], replacements):
-#   phenotypes['matches'][:, i] = j
-#
-# # Create a matrix of mating probabilities based on assortment parameters and phenotypesotype matches.
-# ass_matrix = np.zeros(phenotypes['matches'].shape)
-# ass_matrix = ass_matrix + (1-a) # set the default to the value for non-matches.
-# ass_matrix[phenotypes['matches']] = a # For pairs whose phenotypesotypes match, add these in.
-#
-# ass_matrix = ass_matrix / ass_matrix.sum(1, keepdims=True)
-# ass_matrix = np.log(ass_matrix)
-#
-# return ass_matrix
 
 def mh_ratio(current, new):
     """
