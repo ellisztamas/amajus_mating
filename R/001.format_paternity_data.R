@@ -23,8 +23,8 @@ as2012 <- as2012[as2012$Easting < 426000,]
 
 gps <- as2012[,c("PlantID_final","Easting", "Northing", "Altitude")]
 # Centre Easting and Northing
-gps$Easting  <- gps$Easting - mean(gps$Easting)
-gps$Northing <- gps$Northing - mean(gps$Northing)
+gps$Easting  <- gps$Easting - 423860
+gps$Northing <- gps$Northing - 4686500
 write.csv(gps, 'data_processed//GPS_positions.csv', row.names = F)
 
 sum(as2012$phenoCat_final == -9) # there are 47 plants with no phenotype data
@@ -39,7 +39,25 @@ ros_sulf <- cbind(
 )
 table(ros_sulf$flower_colour)
 
+# Calculate density and frequency.
+dens_freq_40 <- density_frequency(
+  focal = gps[,c('Easting', 'Northing')],
+  population = gps[,c('Easting', 'Northing')],
+  scale=40,
+  focal_phenotypes = ros_sulf$flower_colour,
+  population_phenotypes = ros_sulf$flower_colour
+)
 
+# dens_freq <- cbind(id = gps$PlantID_final,
+#       density_frequency(
+#         focal      = gps %>% select(-PlantID_final),
+#         population = gps %>% select(-PlantID_final),
+#         scale = 50,
+#         focal_phenotypes = ros_sulf$flower_colour,
+#         population_phenotypes = ros_sulf$flower_colour
+#       )
+# )
+# write.csv(dens_freq, "data_processed/density_frequency.csv", row.names = F)
 
 # # 13 genets have constituent ramets with conflicting phenotypes.
 # sum(as2012$phenoCat_final %in% c("WO;Y", "FR;FO","WR;WO","FR;WR;FR", "WR;FO;WR", "WO;WR","FR;FO;FR"))

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import gamma
+import pandas as pd
 
 
 def generalised_normal_PDF(x, scale, shape, gamma_b=None):
@@ -34,8 +35,8 @@ def dispersal_GND(x, scale, shape, w):
 
     Parameters
     ----------
-    x: vector
-        Vector of deviates from the mean.
+    x: 2-d array
+        Matrix of deviates from the mean.
     scale: float
         Scale parameter.
     shape: float
@@ -69,3 +70,36 @@ def stdev_GND(scale, shape):
     Float.
     """
     return (scale * gamma(2.0/shape)) / (1.0/shape)
+
+def grid_interpolation_GND(x, shape_vals, scale_vals):
+    """
+    Get ML estimates for the shape and scale parameters of the GND
+    by grid interpolation.
+    
+    Parameters
+    ----------
+    x: 1-d array
+        Vector of distances.
+    shape_vals: 1-d array
+        Vector of shape parameters.
+    scale_vals: 1-d array
+        Vector of scale parameters.
+        
+    Returns
+    -------
+    Dataframe showing ML vales for shape and scale, and the associated
+    log likelihood.  
+    
+    """
+    #likmat = np.empty([len(shape_vals), len(scale_vals)])
+    likmat = []
+    for shape in shape_vals:
+        for scale in scale_vals:
+            pr_dist = generalised_normal_PDF(x, scale = scale, shape = shape)
+            pr_dist = np.log(pr_dist).sum()
+            #likmat[shape, scale] = np.log(pr_dist).sum()
+            likmat = likmat + [[shape, scale, pr_dist]]
+
+    likmat = pd.DataFrame(likmat, columns=["shape", "scale", "loglik"])
+    
+    return likmat.loc[likmat['loglik'] == likmat['loglik'].max()]

@@ -3,6 +3,92 @@ import numpy as np
 import pandas as pd
 from faps import sibshipCluster
 
+def bin_mating(observed, expected, genotypes, geno_col, gps, breaks, assortment=False):
+    """
+    Calculate likelihoods of mating between each combination of genotypes.
+
+    Parameters
+    ----------
+    observed: DataFrame
+        Dataframe with columns 'mother', 'father', 'prob', giving IDs for
+        the parents, and a probability of mating having occured between them.
+        You can get this by running summarise_sibships() over dictionary of
+        sibshipArray clusters.
+    expected: DataFrame
+        Dataframe with columns 'mother', 'father', 'prob', giving IDs for
+        the parents, and a probability of mating having occured between them
+        under random mating.
+    genotypes: DataFrame
+        Dataframe whose index gives the individual ID, and subsequent giving
+        genotypes for one or more loci. The genotype column to use is set by
+        geno_col
+    geno_col: str
+        Column in `genotypes` to use.
+    gps: DataFrame
+        Dataframe whose keys index individuals, with columns for "Easting"
+        and "Northing".
+    breaks: int or array
+        To be passed to `bins` argument of pd.Series.cut().
+    assortment: bool
+        If True, returns probabilities of mating between pairs of individuals
+        of the same phentoype. Defaults to False.
+
+    Returns
+    -------
+    Dataframe giving likelihoods of receiving pollen from each paternal
+    genotype in each bin.
+    """
+    # Format genotype data.
+    genotypes = genotypes.\
+    reset_index().\
+    filter(['id', geno_col])
+    # GPS positions of the mothers
+    mums_gps = gps.copy().loc[observed['mother']]['Easting'].reset_index()
+
+    # Pull out paternal phenotypes
+    observed = pd.merge(observed, genotypes, left_on='father', right_on="id", how='left')
+    expected = pd.merge(expected, genotypes, left_on='father', right_on="id", how='left')
+    # Tidy phenotype names
+    observed = observed.rename(columns={geno_col:'dad_pheno'})
+    expected = expected.rename(columns={geno_col:'dad_pheno'})
+
+    # Pull out maternal phenotypes
+    observed = pd.merge(observed, genotypes, left_on='mother', right_on="id" , how='left')
+    expected = pd.merge(expected, genotypes, left_on='mother', right_on="id" , how='left')
+    # Tidy phenotype names
+    observed = observed.rename(columns={geno_col:'mum_pheno'})
+    expected = expected.rename(columns={geno_col:'mum_pheno'})
+    #Pull out GPS locations of the mother
+    observed['Easting'] = gps.loc[observed['mother']]['Easting'].to_numpy()
+    expected['Easting'] = gps.loc[expected['mother']]['Easting'].to_numpy()
+    # Label for each candidate by spatial bin
+    observed['bin'] = pd.cut(observed['Easting'], breaks)
+    expected['bin'] = pd.cut(expected['Easting'], breaks)
+
+    if not assortment:
+        # Calcuate observed and expected probs of receiving pollen from each genotype in each bin.
+        x = observed.groupby(['bin', 'dad_pheno']).sum().groupby('bin').apply(lambda x: x / x.sum())
+        x['exp'] = expected.groupby(['bin', 'dad_pheno']).sum().groupby('bin').apply(lambda x: x / x.sum())['prob']
+        x['diff']  = x['prob'] - x['exp']
+        x['ratio'] = x['prob'] / x['exp']
+
+    else:
+        # Vectors stating whether mothers and fathers were the same phenotype
+        observed['match'] = observed['mum_pheno'] == observed['dad_pheno']
+        expected['match'] = expected['mum_pheno'] == expected['dad_pheno']
+
+        # Calcuate observed and expected probs of receiving pollen from each genotype in each bin.
+        x = observed.groupby(['bin', 'match']).sum().groupby('bin').apply(lambda x: x / x.sum())
+        x['exp'] = expected.groupby(['bin', 'match']).sum().groupby('bin').apply(lambda x: x / x.sum())['prob']
+        x['diff']  = x['prob'] - x['exp']
+        x['ratio'] = x['prob'] / x['exp']
+
+    x = x.\
+    rename(columns = {'prob': 'obs'}).\
+    filter(['iter','obs', 'exp', 'diff', 'ratio'])
+
+    return x
+
 def mating_probabilities(siring_probabilities, genotypes, geno_col, drop_na=False):
     """
     Calculate likelihoods of mating between each combination of genotypes.
@@ -68,12 +154,13 @@ def mating_probabilities(siring_probabilities, genotypes, geno_col, drop_na=Fals
 
 def random_sires(sibships, probs):
     """
-    Calculate likelihoods of mating for arbitrary arrays of mating probabilities.
+    Calculate likelihoods of mating for arbitrary arrays of mating
+    probabilities.
 
     `random_sires` returns probilities that maternal individuals mate with each
     of a set of candidate males based on a matrix of mating probabilties. These
-    are returned in the same format as `summarise_sires()`, and can be processed
-    in the same way.
+    are returned in the same format as `summarise_sires()`, and can be
+    processed in the same way.
 
     Parameters
     ----------
@@ -122,6 +209,8 @@ def random_sires(sibships, probs):
     n_sires = np.log(n_sires)
     # Multiply mating probabilities for each candidate by the number of opportunities to mate
     exp_liks = probs + n_sires[:, np.newaxis]
+    # If there are likelihoods above 1, set threshold to 1
+    exp_liks[exp_liks > 0] = 0
     # Make it a dictionary so we can iterate over keys later
     exp_liks = {k: v for k,v in zip(sibships.keys(), exp_liks)}
 
