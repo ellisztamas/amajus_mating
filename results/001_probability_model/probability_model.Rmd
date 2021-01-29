@@ -1,0 +1,32 @@
+---
+title: "Probability model"
+author: "Tom Ellis"
+date: "19/05/2020"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+We have observed data:
+
+* Matrix **M** of observed marker data for offspring, mothers and all candidates
+* Matrix **D** of observed Euclidean distances in metres between mothers and all candidates
+
+We would like to jointly estimate sibships, paternity and dispersal parameters based on those observed data:
+
+* Pedigree P describing sibling, paternal and (known) maternal relationships.
+* Vector $\theta$ of three dispersal parameters:
+    * Scale parameter *a* of the generalised normal distribution.
+    * Shape parameter *b* of the generalised normal distribution.
+    * Mixture parameter $\lambda$
+* Proportion *q* of true fathers not included in the sample.
+
+The full probability model is then:
+
+$$ \Pr(\theta, q, P | \textbf{D}, \textbf{M}) \propto \Pr(\textbf{D} | \theta, P) \Pr(P | \textbf{M}, q,\theta, D) \Pr(\theta) \Pr(q) \Pr(P)$$
+
+Priors:
+
+* Uniform priors on paternity, sibship size/number through $\Pr(P)$.
+* Beta priors for $q$ and $\lambda$
+* Gamma priors for $b$ and mean dispersal distance (instead of $a$).
