@@ -1,2 +1,0 @@
-iter	acc	hours	lambda	loglik	missing	scale	shape
-0	1.0	0.001	0.814	-3427.463	0.156	12.18	1.019

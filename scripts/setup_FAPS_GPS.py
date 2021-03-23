@@ -1,21 +1,25 @@
-# Tom Ellis, October 2019.
-#
-# This script imports and prerpares data on
-# 1. Genotype data of parents and offspring
-# 2. GPS data
-# 3. Flower colour phenotypes
-#
-# It then creates and saves a paternity array object for genotype data.
-# If this file exists when this script is called again, the saved version
-# is imported
-#
-# Finally genotype and paternity arrays are split by maternal family.
+"""
+Tom Ellis, October 2019.
+
+This script imports and prepares data on
+1. Genotype data of parents and offspring
+2. GPS data
+3. Flower colour phenotypes
+
+It then creates and saves a paternity array object for genotype data.
+If this file exists when this script is called again, the saved version
+is imported
+Finally genotype and paternity arrays are split by maternal family.
+
+It returns a faps_data object with all the relevant information.
+"""
 
 import numpy as np
 import faps as fp
 import pandas as pd
 from os.path import isfile
-#from utils_dispersal import *
+# Import local modules
+from amajus_mating import faps_data
 
 # GENOTYPE DATA
 # Genotyping error rate.
@@ -40,7 +44,8 @@ adults  = adults.subset( loci= (adults.heterozygosity('marker') > h))
 
 # PATERNITY ARRAYS
 # If this script is run for the first time, the paternityArray is saved for later.
-# If the file exists, this is imported, which is much faster.
+# If the file exists already, this is imported, which is much faster.
+# Otherwise a new paternityArray object is created.
 if isfile("output/paternity_array.csv"):
     # genotypeArray giving the mother of each maternal family.
     mothers = adults.subset(individuals=np.unique(progeny.mothers))
@@ -67,23 +72,35 @@ progeny = progeny.split(by=progeny.mothers)
 gps = pd.read_csv("data_processed/GPS_positions.csv", index_col=0)
 gps = gps.loc[adults.names] # reorder to match cleaned SNP data
 gps = gps[['Easting','Northing']] # remove the column for altitude. We don't need that here.
-gps_mothers = gps.loc[mothers.keys()] # GPS coordinates for the mothers only.
-# create a matrix of distances between
-distance_matrix = (gps_mothers.values[np.newaxis] - gps.values[:, np.newaxis])**2
-distance_matrix = distance_matrix.sum(axis=2)
-distance_matrix = np.sqrt(distance_matrix).T
+# gps_mothers = gps.loc[mothers.keys()] # GPS coordinates for the mothers only.
+
+# # create a matrix of distances between
+# distance_matrix = (gps_mothers.values[np.newaxis] - gps.values[:, np.newaxis])**2
+# distance_matrix = distance_matrix.sum(axis=2)
+# distance_matrix = np.sqrt(distance_matrix).T
+# # Make that matrix a distionary, with a labelled vector for each mother
+# distances = {k:v for k,v in zip(mothers.keys(), distance_matrix)}
 
 # FLOWER COLOUR
 # Import flower colour data for the population
 ros_sulf = pd.read_csv('data_processed/rosea_sulfurea.csv', index_col='id')
 ros_sulf = ros_sulf.loc[adults.names] # ensure data are in the same order as for the genotype data
-# subset flower colour data for the mothers only.
-mothers_colour_genotypes = ros_sulf.loc[mothers.keys()]
 # Simplify flower colours to yellow, full red or hybrid
-mothers_colour_genotypes['simple_colour'] = 'hybrid'
-mothers_colour_genotypes.loc[mothers_colour_genotypes['flower_colour'].isin(['FR',"Ye"]), 'simple_colour'] = mothers_colour_genotypes['flower_colour']
 ros_sulf['simple_colour'] = 'hybrid'
 ros_sulf.loc[ros_sulf['flower_colour'].isin(['FR',"Ye"]), 'simple_colour'] = ros_sulf['flower_colour']
+# # subset flower colour data for the mothers only.
+# mothers_colour_genotypes = ros_sulf.loc[mothers.keys()]
+
+# mothers_colour_genotypes['simple_colour'].to_numpy()[:,np.newaxis] == ros_sulf['simple_colour'].to_numpy()[np.newaxis]
+
+# Create a class object to hold the data.
+am_data = faps_data(
+    paternity=patlik,
+    gps = gps,
+    flower_colours = ros_sulf['simple_colour'],
+    params = {}
+    )
+
+del(progeny, md, r, h, ros_sulf, patlik, lx, adults, mothers)
 
 
-del(md, r, h)

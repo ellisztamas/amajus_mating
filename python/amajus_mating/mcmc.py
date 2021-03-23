@@ -1,15 +1,8 @@
 import numpy as np
 import faps as fp
-from time import time, strftime
-from tqdm import tqdm
 from pprint import pprint
 import sys
-
-from scipy.stats import beta
-from scipy.stats import gamma as gma
-from scipy.special import gamma
-
-from dispersal import *
+from time import time, strftime
 
 def update_parameters(current_model, sigma):
     """
@@ -62,7 +55,7 @@ def mh_ratio(current, new):
 
     return accept
 
-def setup_output(path, model):
+def setup_output(path, model, proposal_sigma, nreps, thin):
     """
     Set up a blank text file to store model parameters
 
@@ -80,15 +73,27 @@ def setup_output(path, model):
     only, showing iteration and time taken at each iteration,
     followed by columns for each parameter in the list model.
     """
-    out = 'iter\tacc\thours'
-    for k in sorted(model): out = out + '\t' + k
+    # Create a blank output table on disk.
+    out = 'iter\thours'
+    for k in sorted(model.keys()): out = out + '\t' + k
     out = out + '\n'
-
-    output = open('{}'.format(path), 'w')
+    output = open('{}'.format(path) + ' .mcmc', 'w')
     output.write(out)
     output.close()
 
-def write_output(path, i, log_prior, model, decimals = 3, time0=None):
+    # Set up log file
+    log_file = open(path + ".log", 'w')
+    log_file.write('Metropolis-Hasting analysis mating in A. majus begun {}.'.format(strftime("%Y-%m-%d %H:%M:%S")))
+    log_file.write('Initial model:\n')
+    pprint(model, log_file)
+    log_file.write('\nGaussian noise is applied at each iteration with standard deviations:\n')
+    pprint(proposal_sigma, log_file)
+    log_file.write("\nPerforming a total of {} steps, thinning every {} iteration. Output will be saved to:\n{}".format(nreps, thin, path + '.mcmc'))
+    log_file.write('\nAnalysis begun {}.\n\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
+    log_file.write('MCMC set up. Beginning Markov chain...\n')
+    log_file.close()
+
+def write_output(path, i, model, decimals = 3, time0=None):
     """
     Write the output of a model from the current iteration to a
     new line in the output file.
@@ -99,8 +104,6 @@ def write_output(path, i, log_prior, model, decimals = 3, time0=None):
         Path and filename where the output file is stored.
     i: int
         Iteration index.
-    log_prior: float
-        Log prior probability of the model.
     model: dict
         Dictionary of model values with the same parameters
         as the target file.
@@ -123,10 +126,12 @@ def write_output(path, i, log_prior, model, decimals = 3, time0=None):
         t = np.round((time() - time0) / 3600, decimals)
 
     # Prepare a string of output data to be exported.
-    out = str(i) + '\t' + str(round(log_prior, decimals)) + '\t' + str(t)
+    out = str(i) + '\t' + '\t' + str(t)
     for k in sorted(model.keys()):
             out = out + '\t' + str(round(model[k], decimals))
     # write iteration to disk
     with open('{}'.format(path), 'a') as f:
         f.write(out + '\n')
     f.close()
+
+

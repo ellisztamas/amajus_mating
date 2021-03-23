@@ -2,6 +2,23 @@ import numpy as np
 from scipy.special import gamma
 import pandas as pd
 
+def distance_matrix(x, y):
+    """
+    Euclidean distance between two arrays.
+
+    Parameters
+    ----------
+    x, y N-dimensional arrays.
+
+    Returns
+    -------
+    x by y dimensional array.
+    """
+    distance_matrix = (x[np.newaxis] - y[:, np.newaxis])**2
+    distance_matrix = distance_matrix.sum(axis=2)
+    distance_matrix = np.sqrt(distance_matrix).T
+    return distance_matrix
+
 
 def generalised_normal_PDF(x, scale, shape, gamma_b=None):
     """
