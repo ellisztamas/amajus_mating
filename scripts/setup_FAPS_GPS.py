@@ -19,7 +19,7 @@ import faps as fp
 import pandas as pd
 from os.path import isfile
 # Import local modules
-from amajus_mating import faps_data
+from amajusmating import faps_data
 
 # GENOTYPE DATA
 # Genotyping error rate.

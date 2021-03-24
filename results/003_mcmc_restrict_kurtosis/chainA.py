@@ -14,16 +14,12 @@ import os
 from scipy.stats import beta
 from scipy.stats import gamma as gma
 
-# # import local modules.
-# from run_MCMC import run_MCMC
-
-
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 10 #10500 # Total number of iterations to run
-thin  = 1 # How often to write samples.
+nreps = 20 #10500 # Total number of iterations to run
+thin  = 10 # How often to write samples.
 np.random.seed(1246)
 max_distance = np.inf
 
@@ -60,8 +56,6 @@ am_data.run_MCMC(
     priors = priors,
     thin=thin,
     nreps=nreps,
-    # output_dir = "results/003_mcmc_restrict_kurtosis",
-    # chain_name = "test_run",
     output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
     chain_name = os.path.splitext(os.path.basename(__file__))[0],
     max_distance = max_distance
