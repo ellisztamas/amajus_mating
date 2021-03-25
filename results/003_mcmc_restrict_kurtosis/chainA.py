@@ -8,7 +8,7 @@ priors that are fairly skeptical about kurtosis (most of the prior mass on
 shape is between 1 and 3).
 """
 
-# # Import external packages
+# Import external packages
 import numpy as np
 import os
 from scipy.stats import beta
@@ -18,7 +18,7 @@ from scipy.stats import gamma as gma
 exec(open('scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 20 #10500 # Total number of iterations to run
+nreps = 10500 # Total number of iterations to run
 thin  = 10 # How often to write samples.
 np.random.seed(1246)
 max_distance = np.inf
@@ -26,7 +26,6 @@ max_distance = np.inf
 # Dictionary listing starting values.
 initial_model = {
     'missing' : 0.15, # proportion missing fathers
-    # Dispersal parameters
     'shape'  : 1,
     'scale'  : 10,
     'mixture' : 0.8
