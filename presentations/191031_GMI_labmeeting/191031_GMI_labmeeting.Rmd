@@ -1,0 +1,462 @@
+---
+title: "Paternity analysis in *Antirrhinum majus*"
+author: "Tom Ellis"
+date: "31st October 2019"
+output:
+  ioslides_presentation:
+    widescreen: yes
+    css: gmi.css
+---
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+
+<script>
+$(document).ready(function() {
+$('slide:not(.title-slide, .backdrop, .segue)').append('<footer></footer>');    
+$('footer').attr('label', 'thomas.ellis@gmi.oeaw.ac.at @ellisztamas');
+
+})
+</script>
+
+<style>
+footer:after {
+font-size: 12pt;
+content: attr(label);
+position: absolute;
+bottom: 1px;
+right: 60px;
+line-height: 1.9;
+display: block;
+color: #007243
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, cache=T, cache.lazy=T, fig.align='center', warning = F)
+format(Sys.time(), '%d %B, %Y')
+
+library('tidyverse')
+```
+
+```{r import-data, include=F}
+gps <- read_csv("data_processed/GPS_positions.csv")
+
+# PATERNITY ANALYSES
+# Import parameters on assortment from paternity analysis
+mcmc <- read_tsv("output/5_parameter_noassortment_repA.txt")
+mcmc <- mcmc[seq(500,30000, 10), ]# %>% 
+# rename("RR" = "R/R", "Rr" = "R/r", "rr" = "r/r") %>% 
+# rename("S_" = "S/+", "ss" = "s/s")
+# Import realised mating probabilities between genotypes.
+real_ros <- read_csv("output/real_mating_rosea.csv")
+real_sulf <- read_csv("output/real_mating_sulfurea.csv")
+# Import mating probabilties under random mating
+rand_ros <- read_csv("output/random_mating_rosea.csv")
+rand_sulf <- read_csv("output/random_mating_sulfurea.csv")
+
+# Realised mating events based on posterior mean dispersal
+real_mating <- read_csv("output/realised_mating_events.csv")
+```
+
+# Pollen dispersal kernel
+## Generalised exponential distribution
+
+$$ exp[-(\frac{d}{a})^{b}] $$
+
+* $d=$ distance
+- $a=$ scale (roughly mean distance travelled)
+* $b=$ shape
+
+## Generalised exponential distribution
+
+```{r}
+generalised_normal_PDF <- function(x, scale, shape){
+  (shape/(2 * scale * gamma(1.0/shape) )) * exp(-(x/scale)**shape)
+}
+
+xv <- seq(0, 5, 0.01)
+
+yv_norm <- generalised_normal_PDF(xv, 1, 2)
+yv_exp <-  generalised_normal_PDF(xv, 1, 1)
+yv_lept <- generalised_normal_PDF(xv, 1, 0.5)
+
+yv_exp <- yv_exp / sum(yv_exp)
+yv_norm <- yv_norm / sum(yv_norm)
+yv_lept <- yv_lept / sum(yv_lept)
+
+plot(xv, yv_exp, type='l', ylim=c(0,0.015),
+     xlab = "Euclidean distance",
+     ylab="Probability density",
+     lwd=2, col=2)
+# points(xv, yv_norm, type='l', lwd=2, col=3)
+# points(xv, yv_lept, type='l', lwd=2, col=4)
+
+legend('topright', legend = c("Exponential"), pch=16, col=2)
+
+```
+
+- Shape = 1
+- Exponential distribution
+
+## Generalised exponential distribution
+
+```{r}
+plot(xv, yv_exp, type='l', ylim=c(0,0.015),
+     xlab = "Euclidean distance",
+     ylab="Probability density",
+     lwd=2, col=2)
+points(xv, yv_norm, type='l', lwd=2, col=3)
+# points(xv, yv_lept, type='l', lwd=2, col=4)
+
+legend('topright', legend = c("Exponential", "Gaussian"), pch=16, col=2:3)
+
+```
+
+- Shape = 2
+- Gaussian distribution
+
+## Generalised exponential distribution
+
+```{r}
+plot(xv, yv_exp, type='l', ylim=c(0,0.015),
+     xlab = "Euclidean distance",
+     ylab="Probability density",
+     lwd=2, col=2)
+points(xv, yv_norm, type='l', lwd=2, col=3)
+points(xv, yv_lept, type='l', lwd=2, col=4)
+
+legend('topright', legend = c("Exponential", "Gaussian", "Leptokurtic"), pch=16, col=2:4)
+
+```
+
+- Shape < 1
+- Fat-tailed (leptokurtic)
+
+## Mixture model
+
+$$ \lambda exp[-(\frac{d}{a})^{b}]  + (1- \lambda) \frac{1}{N} $$
+
+* $d=$ distance
+* $a=$ scale (roughly mean distance travelled)
+* $b=$ shape
+* $\lambda=$ mixture parameter
+
+## 4 parameters to infer
+
+$$ \lambda exp[-(\frac{d}{a})^{b}]  + (1- \lambda) \frac{1}{N} $$
+
+* $a=$ scale (roughly mean distance travelled)
+* $b=$ shape
+* $\lambda=$ mixture parameter
+* proportion $\theta$ of unsampled fathers
+
+## Model checking
+
+```{r}
+hist(mcmc$lambda,
+     xlab="Mixture parameter",
+     ylab="Posterior density",
+     main="",
+     xlim=c(0,1))
+```
+
+- Most of the signal is from the 'real' dispersal kernel
+
+## Model checking
+
+```{r}
+hist(mcmc$missing,
+     xlab="Proportion missing fathers",
+     ylab="Posterior density",
+     main="",
+     xlim=c(0,1))
+x <- seq(0,1, 0.01)
+yp <- dbeta(x, 3, 20) 
+points(x, yp*100, type='l', col=2, lwd=2)
+
+legend('topright', legend = "beta prior", col=2, pch=16, bty='n')
+```
+
+- Not much signal about missing fathers
+
+# Dispersal
+
+## Dispersal is leptokurtic
+
+```{r}
+hist(mcmc$shape,
+     xlab="Shape parameter",
+     ylab="Posterior density",
+     main="",
+     xlim=c(0,1))
+x <- seq(0,1, 0.01)
+yp <- dbeta(x, 1.1, 1.1) 
+points(x, yp*100, type='l', col=2, lwd=2)
+legend('topright', legend = "beta prior", col=2, pch=16, bty='n')
+
+```
+
+* shape < 1
+* Dispersal mostly short range
+* Rare long-distance events
+
+## Distances are plausible 
+
+<div style="float: left; width: 50%;">
+
+```{r, fig.width=4}
+hist(mcmc$mean_dist,
+     xlab="Mean dispersal distance (m)",
+     ylab="Posterior density",
+     main="",
+     freq=F,
+     xlim=c(0,250),
+     breaks=20
+)
+x <- seq(0,250, 0.01)
+yp <- dgamma(x, shape=2, scale=200) 
+points(x, yp*5, type='l', col=2, lwd=2)
+legend('topright', legend = "gamma prior", col=2, pch=16, bty='n')
+
+```
+
+</div>
+
+<div style="float: right; width: 50%;">
+
+* Mean dispersal:
+$$ \frac{a\Gamma(2/b) } {1/b} $$
+* $a=$scale; $b=$ shape
+
+</div>
+
+## Posterior-mean kernel shape
+
+```{r obs-dispersal}
+xv <- 1:1000
+yv <- generalised_normal_PDF(xv, scale =mean(mcmc$scale), shape = mean(mcmc$shape))
+mss <- sum(real_mating$prob)
+
+library(plotrix)
+weighted.hist(real_mating$distance,
+              w = real_mating$prob,
+              breaks = seq(0,1000, 10),
+              freq=T,)
+points(xv, yv*20000, type='l', col=2, lwd=2)
+
+legend('topright', c("Mean kernel shape", "'observed' distances"), pch=16, col=2:1)
+```
+
+- $\bar{a}$ = `r mean(mcmc$scale)`; $\bar{b}$ = `r mean(mcmc$shape)`
+- bars: observed distances weighted by probability
+
+## Posterior-mean kernel shape
+
+```{r, ref.label="obs-dispersal"}
+```
+
+- 'Hump' at 200-400m
+- Fathers from the upper road
+
+## Posterior-mean kernel shape
+
+```{r, ref.label="obs-dispersal"}
+```
+
+- Tail probably inflated
+- Sample densities uneven
+
+# Mating for flower colour
+## Observed vs. expected mating
+
+- For each draw in the MCMC: 
+  - **Observed**: fathers drawn based on dispersal plus genetics
+  - **Expected**: fathers drawn based on dispersal only
+
+```{r}
+ros_mating <- vector('list', 3)
+
+for(g in c('R/R', "R/r", "r/r")){
+  o <- real_ros %>%
+    filter(maternal == g) %>% 
+    select(- i, -maternal)
+  
+  e <- rand_ros %>% 
+    filter(maternal == g) %>% 
+    select(- i, -maternal)
+  
+  ros_mating[[g]] <- data.frame(
+    maternal = g,
+    paternal = colnames(o),
+    mean  = colMeans(o-e),
+    lower = apply((o-e),2, quantile, 0.025),
+    upper = apply((o-e),2, quantile, 0.975)
+  )
+}
+ros_mating <- do.call('rbind', ros_mating)
+
+```
+
+```{r}
+sulf_mating <- vector('list', 2)
+
+for(g in c('S/+', 's/s')){
+  o <- real_sulf %>%
+    filter(maternal == g) %>% 
+    select(- i, -maternal)
+  
+  e <- rand_sulf %>% 
+    filter(maternal == g) %>% 
+    select(- i, -maternal)
+  
+  sulf_mating[[g]] <- data.frame(
+    maternal = g,
+    paternal = colnames(o),
+    mean  = colMeans(o-e),
+    lower = apply((o-e),2, quantile, 0.025),
+    upper = apply((o-e),2, quantile, 0.975)
+  )
+}
+sulf_mating <- do.call('rbind', sulf_mating)
+```
+
+## Pollen swamping by magenta plants 
+
+
+<div style="float: left; width: 50%;">
+
+```{r, fig.width=11/2.54}
+os <- 0.1
+
+xv <- rep(1:3, each=3) + rep(c(-os, 0, os), 3)
+
+plot(c(0,4), c(-0.5,0.5), type='n',
+     xlab="Maternal genotype",
+     ylab="Relative prob. receiving pollen",
+     xlim=c(0.5, 3.5),
+     axes=F)
+axis(1, 1:3, labels = c("R/R", "R/r", "r/r"))
+legend('bottomright', legend=c("R/R donors", "R/r donors", "r/r donors"), pt.bg=c('magenta', 'pink', 'white'), pch=21)
+axis(2)
+box()
+
+abline(0,0, lty=2)
+segments(xv, ros_mating$lower, xv, ros_mating$upper, lwd=2)
+points(xv, ros_mating$mean, pch=21, bg=c('magenta', 'pink', 'white'), lwd=1)
+
+```
+
+- Observed-expected
+- +/- credible intervals
+
+</div>
+
+<div style="float: right; width: 50%;">
+
+```{r fig.width=11/2.54, fig.height=5, echo=FALSE}
+library(png)
+library(grid)
+img <- readPNG("figures/ros_sulf_examples.png")
+grid.raster(img)
+```
+
+
+</div>
+
+## Pollen swamping by non-yellow plants 
+
+
+<div style="float: left; width: 50%;">
+
+```{r, fig.width=11/2.54}
+os <- 0.1
+
+xv <- rep(1:2, each=2) + rep(c(-os, os), 2)
+
+plot(c(0,3), c(-0.5,0.5), type='n',
+     xlab="Maternal genotype",
+     ylab="Relative prob. receiving pollen",
+     xlim=c(0.5, 2.5),
+     axes=F)
+axis(1, 1:2, labels = c("S/+", "s/s"))
+legend('bottomright', legend=c("S/+ donors", "s/s donors"), pt.bg=c('white', 'gold'), pch=21)
+axis(2)
+box()
+
+abline(0,0, lty=2)
+segments(xv, sulf_mating$lower, xv, sulf_mating$upper, lwd=2)
+points(xv, sulf_mating$mean, pch=21, bg=c('white', 'gold'), lwd=1)
+
+```
+
+- Observed-expected
+- +/- credible intervals
+
+</div>
+
+<div style="float: right; width: 50%;">
+
+```{r fig.width=11/2.54, fig.height=5, echo=FALSE}
+library(png)
+library(grid)
+img <- readPNG("figures/ros_sulf_examples.png")
+grid.raster(img)
+```
+
+
+</div>
+
+## Male fitness
+
+- *A. m. pseudomajus*-like plants dominate pollen export, but:
+  - Other experiments suggest pollinators show no preference
+  - No differences in pollen fertility
+
+## Male fitness
+
+- *A. m. pseudomajus*-like plants dominate pollen export, but:
+  - Other experiments suggest pollinators show no preference
+  - No differences in pollen fertility
+- Samples happen to be close to where *A. m. pseudomajus* shows high fitness.
+
+## Male fitness
+
+- *A. m. pseudomajus*-like plants dominate pollen export, but:
+  - Other experiments suggest pollinators show no preference
+  - No differences in pollen fertility
+- Samples happen to be close to where *A. m. pseudomajus* shows high fitness.
+- Consistent with cline discordance
+
+## Male fitness
+
+- *A. m. pseudomajus*-like plants dominate pollen export, but:
+  - Other experiments suggest pollinators show no preference
+  - No differences in pollen fertility
+- Samples happen to be close to where *A. m. pseudomajus* shows high fitness.
+- Consistent with cline discordance
+- How much selection can this explain?
+
+## Conclusions
+
+- Joint analysis of sibship structure, paternity and dispersal
+- Order of magnitude larger than previous studies
+
+## Conclusions
+
+- Joint analysis of sibship structure, paternity and dispersal
+- Order of magnitude larger than previous studies
+- Pollen moves 50-80m on average
+- Long tail of long-distance mating events
+
+## Conclusions
+
+- Joint analysis of sibship structure, paternity and dispersal
+- Order of magnitude larger than previous studies
+- Pollen moves 50-80m on average
+- Long tail of long-distance mating events
+- Magenta *A. m. pseudomajus* plants show high male fitness
+
+## Acknowledgements
+
+-Switch back

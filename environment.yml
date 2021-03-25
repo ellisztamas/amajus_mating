@@ -1,0 +1,18 @@
+name: envs
+channels:
+  - defaults
+dependencies:
+  - numpy=1.19.2
+  - pandas=1.2.3
+  - pip=21.0.1
+  - python=3.9.2
+  - scipy=1.6.1
+  - setuptools=52.0.0
+  - tqdm=4.59.0
+  - pip:
+    - faps==2.5.1
+    - fastcluster==1.1.28
+    - pytest==6.2.2
+    - -e python/.
+prefix: /datadisk/Mega/amajus_mating/envs
+
