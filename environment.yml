@@ -9,4 +9,6 @@ dependencies:
   - setuptools=52.0.0
   - python=3.9.2
   - tqdm
+  - pip:
+    - faps
 prefix: /datadisk/Documents/Antirrhinum/amajus_mating/envs

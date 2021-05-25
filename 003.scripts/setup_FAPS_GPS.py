@@ -25,8 +25,8 @@ from amajusmating import faps_data
 # Genotyping error rate.
 mu=0.0013
 # Import genpotype data
-progeny = fp.read_genotypes('data_processed/offspring_2012_genotypes.csv', mothers_col=1, genotype_col=2)
-adults  = fp.read_genotypes('data_processed/parents_2012_genotypes.csv')
+progeny = fp.read_genotypes('001.data/002.processed/offspring_2012_genotypes.csv', mothers_col=1, genotype_col=2)
+adults  = fp.read_genotypes('001.data/002.processed/parents_2012_genotypes.csv')
 # SNP Data cleaning.
 # remove individuals with >7.5% midding data
 md = 0.075
@@ -46,18 +46,18 @@ adults  = adults.subset( loci= (adults.heterozygosity('marker') > h))
 # If this script is run for the first time, the paternityArray is saved for later.
 # If the file exists already, this is imported, which is much faster.
 # Otherwise a new paternityArray object is created.
-if isfile("output/paternity_array.csv"):
+if isfile("004.output/paternity_array.csv"):
     # genotypeArray giving the mother of each maternal family.
     mothers = adults.subset(individuals=np.unique(progeny.mothers))
      # Split into maternal families.
     # Import saved paternityArray.
-    patlik = fp.read_paternity_array("output/paternity_array.csv")
+    patlik = fp.read_paternity_array("004.output/paternity_array.csv")
 else:
     # A single genotypeArray giving the mother of each of 984 offspring individuals.
     mothers = adults.subset(individuals=progeny.mothers)
     # Create the paternity array and save for later.
     patlik = fp.paternity_array(progeny, mothers, adults, mu = mu, missing_parents= 0.15)
-    patlik.write("output/paternity_array.csv")
+    patlik.write("004.output/paternity_array.csv")
 
 # SPLIT BY MATERNAL FAMILYs
 # genotypeArray giving the mother of each maternal family.
@@ -69,7 +69,7 @@ progeny = progeny.split(by=progeny.mothers)
 
 # GPS DATA
 # Import GPS data
-gps = pd.read_csv("data_processed/GPS_positions.csv", index_col=0)
+gps = pd.read_csv("001.data/002.processed/GPS_positions.csv", index_col=0)
 gps = gps.loc[adults.names] # reorder to match cleaned SNP data
 gps = gps[['Easting','Northing']] # remove the column for altitude. We don't need that here.
 # gps_mothers = gps.loc[mothers.keys()] # GPS coordinates for the mothers only.
@@ -83,7 +83,7 @@ gps = gps[['Easting','Northing']] # remove the column for altitude. We don't nee
 
 # FLOWER COLOUR
 # Import flower colour data for the population
-ros_sulf = pd.read_csv('data_processed/rosea_sulfurea.csv', index_col='id')
+ros_sulf = pd.read_csv('001.data/002.processed/rosea_sulfurea.csv', index_col='id')
 ros_sulf = ros_sulf.loc[adults.names] # ensure data are in the same order as for the genotype data
 # Simplify flower colours to yellow, full red or hybrid
 ros_sulf['simple_colour'] = 'hybrid'

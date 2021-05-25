@@ -40,23 +40,23 @@ library('tidyverse')
 ```
 
 ```{r import-data, include=F}
-gps <- read_csv("data_processed/GPS_positions.csv")
+gps <- read_csv("001.data/002.processed/GPS_positions.csv")
 
 # PATERNITY ANALYSES
 # Import parameters on assortment from paternity analysis
-mcmc <- read_tsv("output/5_parameter_noassortment_repA.txt")
+mcmc <- read_tsv("004.output/5_parameter_noassortment_repA.txt")
 mcmc <- mcmc[seq(500,30000, 10), ]# %>% 
 # rename("RR" = "R/R", "Rr" = "R/r", "rr" = "r/r") %>% 
 # rename("S_" = "S/+", "ss" = "s/s")
 # Import realised mating probabilities between genotypes.
-real_ros <- read_csv("output/real_mating_rosea.csv")
-real_sulf <- read_csv("output/real_mating_sulfurea.csv")
+real_ros <- read_csv("004.output/real_mating_rosea.csv")
+real_sulf <- read_csv("004.output/real_mating_sulfurea.csv")
 # Import mating probabilties under random mating
-rand_ros <- read_csv("output/random_mating_rosea.csv")
-rand_sulf <- read_csv("output/random_mating_sulfurea.csv")
+rand_ros <- read_csv("004.output/random_mating_rosea.csv")
+rand_sulf <- read_csv("004.output/random_mating_sulfurea.csv")
 
 # Realised mating events based on posterior mean dispersal
-real_mating <- read_csv("output/realised_mating_events.csv")
+real_mating <- read_csv("004.output/realised_mating_events.csv")
 ```
 
 # Pollen dispersal kernel

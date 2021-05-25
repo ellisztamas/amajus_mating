@@ -19,19 +19,22 @@ class faps_data(object):
         self.gps = gps
         self.flower_colours = flower_colours
         self.params = {}
+
         # Check the mothers are present in data files.
-        self.mothers = paternity.keys()
+        self.mothers = self.paternity.keys()
         if any([k not in gps.index for k in self.mothers]):
             ValueError("Not all mothers in the paternity array are present in GPS data.")
         if any([k not in flower_colours.index for k in self.mothers]):
             ValueError("Not all mothers in the paternity array are present in flower-colour data.")
+
         # Check there are the expected numbers of fathers
         n_candidates = [len(v.candidates) for v in self.paternity.values()]
         assert n_candidates.count(n_candidates[0]) == len(n_candidates)
-        n_candidates == n_candidates[0]
+        n_candidates = n_candidates[0]
+
         # Distance matrix
         self.distances = dispersal.distance_matrix(gps.loc[self.mothers].to_numpy(), self.gps.to_numpy())
-        assert self.distances.shape == [len(mothers), n_candidates]
+        assert self.distances.shape == (len(self.mothers), n_candidates)
 
         self.covariates = {}
 
@@ -169,9 +172,8 @@ class faps_data(object):
 
         # RUN THE MCMC.
         for i in tqdm(range(nreps)):
-        # UPDATE PARAMETERS
+            # UPDATE PARAMETERS
             new_model = mcmc.update_parameters(current_model, proposal_sigma)
-            if new_model['mixture'] > 1.0: new_model['mixture'] = 1.0
             # Calculate log prior probabilities of the new model.
             prior_probs = list(priors(new_model).values())
             new_model['log_prior'] = np.log(prior_probs).sum()
@@ -207,7 +209,8 @@ class faps_data(object):
                 current = current_model['log_posterior'],
                 new     = new_model['log_posterior']
             )
-            if accept: current_model = new_model
+            if accept:
+                current_model = new_model
 
             # write iteration to disk
             if(i in np.arange(start = 0, stop = nreps, step=thin)):

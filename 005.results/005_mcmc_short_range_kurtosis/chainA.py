@@ -18,7 +18,7 @@ from scipy.stats import gamma as gma
 
 
 # FAPS objects and distance matrices are generated in a separate script.
-exec(open('scripts/setup_FAPS_GPS.py').read())
+exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
 nreps = 20 #10500 # Total number of iterations to run

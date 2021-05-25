@@ -15,11 +15,11 @@ from scipy.stats import beta
 from scipy.stats import gamma as gma
 
 # FAPS objects and distance matrices are generated in a separate script.
-exec(open('scripts/setup_FAPS_GPS.py').read())
+exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 10500 # Total number of iterations to run
-thin  = 10 # How often to write samples.
+nreps = 105#00 # Total number of iterations to run
+thin  = 1 # How often to write samples.
 np.random.seed(1246)
 max_distance = np.inf
 

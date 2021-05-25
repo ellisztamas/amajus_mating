@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 
-exec(open('scripts/setup_FAPS_GPS.py').read())
+exec(open('003.scripts/setup_FAPS_GPS.py').read())
 am_data = am_data
 
 def test_there_are_60_mothers():

@@ -23,9 +23,16 @@ def update_parameters(current_model, sigma):
     # apply deviates to each parameter
     for k in sigma.keys():
         new_model[k] += dev[k]
+    
+    # Check things stay within boundaries
+    if new_model['mixture'] > 1.0: new_model['mixture'] = 1.0
+    if new_model['mixture'] <   0: new_model['mixture'] = 0
+    
+    if new_model['missing'] > 1.0: new_model['missing'] = 1.0
+    if new_model['missing'] <   0: new_model['missing'] = 0
 
-    # This is a very hacky way to ensure that values are all positive
-    new_model = {k: np.sqrt(v**2) for (k,v) in new_model.items()}
+    if new_model['shape'] <   0: new_model['shape'] = 0
+    if new_model['scale'] <   0: new_model['scale'] = 0
 
     return new_model
 
