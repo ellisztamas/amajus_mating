@@ -9,10 +9,15 @@ shape is between 1 and 3).
 """
 
 # Import external packages
+# from typing import runtime_checkable
+# from typing_extensions import runtime
 import numpy as np
 import os
+# from numpy.core.fromnumeric import amax
 from scipy.stats import beta
 from scipy.stats import gamma as gma
+
+from amajusmating import mcmc
 
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
@@ -25,10 +30,11 @@ max_distance = np.inf
 
 # Dictionary listing starting values.
 initial_model = {
-    'missing' : 0.15, # proportion missing fathers
+    'loglik' : -10e12, # set initial likelihood to a very small number
+    'missing' : 0.3, # proportion missing fathers
     'shape'  : 1,
-    'scale'  : 10,
-    'mixture' : 0.8
+    'scale'  : 30,
+    'mixture' : 0.02
 }
 
 # Proposed values are a Gaussian peturbation away from the previous values.
@@ -49,13 +55,16 @@ priors = (lambda x : {
 })
 
 # Run the MCMC
-am_data.run_MCMC(
+mcmc.run_MCMC(
+    faps_data= am_data,
     initial_parameters = initial_model,
     proposal_sigma = proposal_sigma,
     priors = priors,
     thin=thin,
     nreps=nreps,
-    output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
-    chain_name = os.path.splitext(os.path.basename(__file__))[0],
+    output_dir = "005.results/",
+    chain_name = "test2",
+    # output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
+    # chain_name = os.path.splitext(os.path.basename(__file__))[0],
     max_distance = max_distance
-)
+    )
