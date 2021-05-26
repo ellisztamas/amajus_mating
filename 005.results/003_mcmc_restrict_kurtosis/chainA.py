@@ -23,8 +23,8 @@ from amajusmating import mcmc
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 105#00 # Total number of iterations to run
-thin  = 1 # How often to write samples.
+nreps = 10500 # Total number of iterations to run
+thin  = 10 # How often to write samples.
 np.random.seed(1246)
 max_distance = np.inf
 
@@ -33,8 +33,8 @@ initial_model = {
     'loglik' : -10e12, # set initial likelihood to a very small number
     'missing' : 0.3, # proportion missing fathers
     'shape'  : 1,
-    'scale'  : 30,
-    'mixture' : 0.02
+    'scale'  : 10,
+    'mixture' : 0.8
 }
 
 # Proposed values are a Gaussian peturbation away from the previous values.
@@ -62,9 +62,7 @@ mcmc.run_MCMC(
     priors = priors,
     thin=thin,
     nreps=nreps,
-    output_dir = "005.results/",
-    chain_name = "test2",
-    # output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
-    # chain_name = os.path.splitext(os.path.basename(__file__))[0],
+    output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
+    chain_name = os.path.splitext(os.path.basename(__file__))[0],
     max_distance = max_distance
     )

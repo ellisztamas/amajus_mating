@@ -52,7 +52,8 @@ priors = (lambda x : {
 })
 
 # Run the MCMC
-am_data.run_MCMC(
+mcmc.run_MCMC(
+    faps_data= am_data,
     initial_parameters = initial_model,
     proposal_sigma = proposal_sigma,
     priors = priors,
@@ -61,4 +62,4 @@ am_data.run_MCMC(
     output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
     chain_name = os.path.splitext(os.path.basename(__file__))[0],
     max_distance = max_distance
-)
+    )
