@@ -10,7 +10,56 @@ from amajusmating.dispersal import dispersal_GND
 from scipy.stats import beta
 from scipy.stats import gamma as gma
 
-def update_parameters(current_model, sigma):
+def check_parameters(model, sigma):
+    """
+    Check that variable names are ones that `run_MCMC` will recognise, 
+    and that initial parameters are valid. The add placeholder values for
+    log prior, likelihood and posterior.
+
+    Parameters
+    ----------
+    model: dict
+        Dictionary of starting model parameters. Keys should be a subset of
+        ['missing', 'shape', 'scale', 'mixture', 'assortment'] and values 
+        floats giving initial values for those parameters, within appropriate
+        boundaries.
+    sigma: dict
+        Dictionary of standard deviations from which to draw normal
+        deviates to apply to each value in current_model.
+    """
+    if not isinstance(model, dict):
+        raise TypeError("`model` should be a dictionary with parameter names as keys and starting values as values.")
+    if not isinstance(sigma, dict):
+        raise TypeError("`sigma` should be a dictionary with parameter names as keys and standard deviations as values.")
+    if model.keys() != sigma.keys():
+        raise ValueError("The keys in `model` do not match those in `sigma`")
+
+    valid_parameters = ['missing', 'shape', 'scale', 'mixture', 'assortment']
+    if not all([x in valid_parameters for x in model.keys()]):
+        raise ValueError("Not all parameter names are valid. Valid names are 'missing', 'shape', 'scale', 'mixture', and 'assortment'.")
+
+    # Check things stay within boundaries
+    if model['mixture'] > 1.0 or model['mixture'] < 0:
+        raise ValueError('"mixture" parameter should be between 0 and 1.')
+    if model['missing'] > 1.0 or model['missing'] < 0:
+        raise ValueError('"missing" parameter should be between 0 and 1.')
+    if model['shape'] <= 0:
+        raise ValueError("'shape' parameter should be positive.")
+    if model['scale'] <= 0:
+        raise ValueError("'scale' parameter should be positive.")
+    if "assortment" in model.keys():
+        if model['assortment'] > 1.0 or model['assortment'] < 0:
+            raise ValueError('"assortment" parameter should be between 0 and 1.')
+
+    output = dict(model)
+    # set initial log probabilities to very small numbers
+    output['loglik']        = -10e12
+    output['log_prior']     = -10e12
+    output['log_posterior'] = -10e12
+
+    return output
+
+def update_parameters(current_model:dict, sigma:dict):
     """
     Apply Gaussian peturbation to a dictionary of model parameters.
 
@@ -22,7 +71,7 @@ def update_parameters(current_model, sigma):
         Dictionary of standard deviations from which to draw normal
         deviates to apply to each value in current_model. At least
         one key must intersect with the keys of current_model.
-    """
+    """    
     new_model = dict(current_model)
     # random deviates for each parameter
     dev = {k: np.random.normal(0, v) for k, v in sigma.items()}
@@ -33,12 +82,16 @@ def update_parameters(current_model, sigma):
     # Check things stay within boundaries
     if new_model['mixture'] > 1.0: new_model['mixture'] = 1.0
     if new_model['mixture'] <   0: new_model['mixture'] = 0
-    
+
     if new_model['missing'] > 1.0: new_model['missing'] = 1.0
     if new_model['missing'] <   0: new_model['missing'] = 0
 
     if new_model['shape'] <   0: new_model['shape'] = 0
     if new_model['scale'] <   0: new_model['scale'] = 0
+
+    if "assortment" in current_model.keys():
+        if new_model['assortment'] > 1.0: new_model['assortment'] = 1.0
+        if new_model['assortment'] <   0: new_model['assortment'] = 0
 
     return new_model
 
@@ -94,7 +147,7 @@ def setup_output(path, model, proposal_sigma, nreps, thin):
 
     # Set up log file
     log_file = open(path + ".log", 'w')
-    log_file.write('Metropolis-Hasting analysis mating in A. majus begun {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
+    log_file.write('Metropolis-Hasting analysis mating in A. majus begun {} using FAPS version {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S"), fp.__version__))
     log_file.write('Parameters to initiate the chain:\n')
     pprint(model, log_file)
     log_file.write('\nGaussian noise is applied to these values at each iteration with standard deviations:\n')
@@ -144,7 +197,7 @@ def write_output(path, i, model, decimals = 3, time0=None):
         f.write(out + '\n')
     f.close()
 
-def run_MCMC(faps_data, initial_parameters, proposal_sigma, priors, nreps, output_dir, chain_name, thin=1, max_distance = np.inf):
+def run_MCMC(data, initial_parameters, proposal_sigma, priors, nreps, output_dir, chain_name, thin=1, max_distance = np.inf):
         """
         A wrapper function to run Metropolis-Hastings MCMC for paternity and dispersal.
 
@@ -154,7 +207,10 @@ def run_MCMC(faps_data, initial_parameters, proposal_sigma, priors, nreps, outpu
             Dictionary of starting values for the parameters, with the names as keys and 
             values as floats for the parameter values. Usually this would include the
             'shape' and 'scale' parameters of for the generalised normal distribution,
-            the proportion of 'missing' fathers and mixture parameter 'lambda'.
+            the proportion of 'missing' fathers and mixture parameter 'mixture'. Optionally,
+            this can include 'assortment' probability p, giving the probability that individuals
+            of the same flower colour mate, while individuals of different genotypes mate
+            with probabilty 1-p
         proposal_sigma: dict
             Dictionary giving the standard deviation of the normal distribution by which
             to peturb parameters at each iteration. Should have the same keys as 
@@ -174,18 +230,14 @@ def run_MCMC(faps_data, initial_parameters, proposal_sigma, priors, nreps, outpu
             This is equivalent to setting a threshold prior on distance.
         
         """
-        current_model = initial_parameters
-
+        # Check that parameters supplied can be evaluated.
         # For the first iteration, start with an arbitary probabilities
         # It doesn't matter, because for MH-ratio skips the first iteration by default.
-        current_model['log_prior']     = -10e12
-        current_model['loglik']        = -10e12
-        current_model['log_posterior'] = -10e12
+        current_model = check_parameters(initial_parameters, proposal_sigma)
+
         # Set up the datafiles
         out_file = output_dir + chain_name
         setup_output(out_file, current_model, proposal_sigma, nreps, thin)
-
-        #  IMPORT AND FORMAT DATA.
         t0 = time()
 
         # RUN THE MCMC.
@@ -198,28 +250,31 @@ def run_MCMC(faps_data, initial_parameters, proposal_sigma, priors, nreps, outpu
 
             # LOG PROBABILITIES OF PATERNITY FOR EACH PARAMETER
             # Update proportion of missing fathers
-            faps_data.update_missing_dads(new_model['missing'])
+            data.update_missing_dads(new_model['missing'])
             # Update dispersal
-            faps_data.update_dispersal_probs(
+            data.update_dispersal_probs(
                 scale = new_model['scale'],
                 shape = new_model['shape'],
                 mixture = new_model['mixture']
             )
             # Identify candidates who are further than the distance threshold
             # and set their log likelihoods to negative infinity
-            ix = faps_data.distances > max_distance
-            faps_data.covariates['dispersal'][ix] = -np.inf
-
+            ix = data.distances > max_distance
+            data.covariates['dispersal'][ix] = -np.inf
+            # Assortment, if used.
+            if "assortment" in new_model.keys():
+                data.update_assortment_probs(new_model['assortment'])
+            
             # INFER FAMILIES
             # Incorporate covariate information into paternity_arrays
-            cov = sum(faps_data.covariates.values())
-            for (p,s) in zip(faps_data.paternity, cov):
-                faps_data.paternity[p].add_covariate(s)
+            cov = sum(data.covariates.values())
+            for (p,s) in zip(data.paternity, cov):
+                data.paternity[p].add_covariate(s)
             # Cluster into families and get likelihoods
-            faps_data.sibship_clustering(ndraws=100, use_covariates=True)
+            data.sibship_clustering(ndraws=100, use_covariates=True)
 
             # Probability components for the new model.
-            new_model['loglik'] = np.array([fp.alogsumexp(s.lik_partitions) for s in faps_data.sibships.values()]).sum()
+            new_model['loglik'] = np.array([fp.alogsumexp(s.lik_partitions) for s in data.sibships.values()]).sum()
             new_model['log_posterior'] = new_model['loglik'] + new_model['log_prior']
 
             # Decide whether to accept the new model.
@@ -237,128 +292,3 @@ def run_MCMC(faps_data, initial_parameters, proposal_sigma, priors, nreps, outpu
         log_file = open(output_dir + chain_name + ".log", 'a')
         log_file.write('\nMCMC completed {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
         log_file.close()
-
-# def run_MCMC(paternity_arrays, distance_matrix, initial_parameters, proposal_sigma, nreps, output_dir, chain_name, thin=1, max_distance = np.inf):
-#     """
-#     A wrapper function to run Metropolis-Hastings MCMC for paternity and dispersal.
-
-
-#     Parameters
-#     ----------
-#     paternity_arrays: dict
-#         Dictionary of paternityArray objects for each full sibling family.
-#     distance_matrix: array
-#         Array of distances between the mothers and all candidate fathers.
-#     initial_parameters: dict
-#         Dictionary of starting values for the parameters, with the names as keys and 
-#         values as floats for the parameter values. Usually this would include the
-#         'shape' and 'scale' parameters of for the generalised normal distribution,
-#         the proportion of 'missing' fathers and mixture parameter 'mixture'.
-#     proposal_sigma: dict
-#         Dictionary giving the standard deviation of the normal distribution by which
-#         to peturb parameters at each iteration. Should have the same keys as 
-#         `initial_parameters`.
-#     nreps: int
-#         Number of iterations to run
-#     output_dir: str
-#         Directory to save the output.    
-#      chain_name: str
-#         Name for the output file, without a suffix.
-#     thin: int
-#         Optional thinning argument. If >1, every one in `thin` samples will be written
-#         to disk.
-#     max_distance: float, int
-#         Maximum distance from the mother a candidate may be. Candidates further than
-#         this value will have their posterior probability of paternity set to zero.
-#         This is equivalent to setting a threshold prior on distance.
-    
-#     """
-#     current_model = initial_parameters
-
-#     # Set up the datafiles
-#     out_file = output_dir + chain_name + ".txt"
-#     mcmc.setup_output(out_file, current_model, proposal_sigma, nreps, thin)
-#     # setup_output(out_file, current_model.keys())
-    
-#     # # Set up log file
-#     # log_file = open(output_dir + chain_name + ".log", 'w')
-#     # log_file.write('Metropolis-Hasting analysis mating in A. majus begun {}.'.format(strftime("%Y-%m-%d %H:%M:%S")))
-#     # log_file.write('Initial model:\n')
-#     # pprint(current_model, log_file)
-#     # log_file.write('\nGaussian noise is applied at each iteration with standard deviations:\n')
-#     # pprint(proposal_sigma, log_file)
-#     # log_file.write("\nPerforming a total of {} steps, thinning every {} iteration. Output will be saved to:\n{}".format(nreps, thin, out_file))
-#     # log_file.write('\nAnalysis begun {}.\n\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
-
-#     #  IMPORT AND FORMAT DATA.
-#     t0 = time()
-
-#     # RUN THE MCMC.
-#     log_file.write('MCMC set up. Beginning Markov chain...\n')
-#     log_file.close()
-#     t0 = time()
-#     track_accept = 0 # to record mean MH-acceptance rate
-#     for i in tqdm(range(nreps)):
-#         # UPDATE PARAMETERS
-#         new_model = update_parameters(current_model, proposal_sigma)
-#         # # Update distance travelled using new parameters
-#         # new_model['mean_dist'] = stdev_GND(scale = new_model['scale'],
-#         #                                    shape = new_model['shape'])
-
-#         # LOG PROBABILITIES OF PATERNITY FOR EACH PARAMETER
-#         # Update proportion of missing fathers
-#         for p in paternity_arrays.keys():
-#             paternity_arrays[p].missing_parents = new_model['missing']
-#         # Update dispersal probabilities
-#         if new_model['mixture'] > 1.0: new_model['mixture'] = 1.0
-#         # Probability of drawing each male under GND dispersal
-#         prob_drawn = dispersal_GND(
-#             x     = distance_matrix,
-#             scale = new_model['scale'],
-#             shape = new_model['shape'],
-#             w     = new_model['mixture'])
-#         # Identify candidates who are further than the threshold distance
-#         # and set their log likelihoods to negative infinity
-#         ix = distance_matrix > max_distance
-#         prob_drawn[ix] = -np.inf
-#         # Incorporate into paternity_arrays
-#         for (p,s) in zip(paternity_arrays.keys(), prob_drawn):
-#             paternity_arrays[p].add_covariate(s)
-
-#         # INFER FAMILIES
-#         # Cluster into families and get likelihoods
-#         sc = fp.sibship_clustering(paternity_arrays, ndraws=100, use_covariates=True)
-#         new_model['loglik'] = np.array([fp.alogsumexp(s.lik_partitions) for s in sc.values()]).sum()
-
-#         # PRIORS
-#         # Incorporate prior probabilities.
-#         prior_probs = {
-#             'missing'   : beta.pdf(new_model['missing'],a=3,   b=15),
-#             'mixture'    : beta.pdf(new_model['mixture'], a=1.1, b=1.1),
-#             'shape'     : gma.pdf(new_model['shape'],   a=10, scale = 1/5),
-#             # 'mean_dist' : gma.pdf(new_model['mean_dist'],      a=2,   scale= 200),
-#             'scale'     : gma.pdf(new_model['shape'],   a=6, scale = 50),
-#         }
-#         # Log prior probabilities
-#         prior_probs = {k: np.log(v) for k,v in prior_probs.items()}
-#         log_prior   = np.array(list(prior_probs.values())).sum()
-#         # Sum log probabilities and incorporate
-#         new_model['loglik'] += log_prior
-
-#         # Decide whether to accept the new model.
-#         accept = mh_ratio(
-#             current = current_model['loglik'],
-#             new     = new_model['loglik']
-#         )
-#         if accept:
-#             current_model = new_model
-#             track_accept += 1
-
-#         mean_acceptance = float(track_accept) / (i+1)
-#         # write iteration to disk
-#         if(i in np.arange(start = 0, stop = nreps, step=thin)):
-#             write_output(out_file, i, mean_acceptance, current_model, time0=t0)
-
-#     log_file = open(output_dir + chain_name + ".log", 'a')
-#     log_file.write('\nMCMC completed {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
-#     log_file.close()

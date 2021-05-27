@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 """
-Tom Ellis, 26th January 2021
+Tom Ellis, 27th May 2021
 
 Script to run joint analysis of paternity, sibships and dispersal using
 priors that are fairly skeptical about kurtosis (most of the prior mass on
@@ -23,15 +23,14 @@ from amajusmating import mcmc
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 10500 # Total number of iterations to run
-thin  = 10 # How often to write samples.
+nreps = 200 # Total number of iterations to run
+thin  = 1 # How often to write samples.
 np.random.seed(1246)
 max_distance = np.inf
 
 # Dictionary listing starting values.
-initial_model = {
-    'loglik' : -10e12, # set initial likelihood to a very small number
-    'missing' : 0.3, # proportion missing fathers
+initial_parameters = {
+    'missing' : 0.15, # proportion missing fathers
     'shape'  : 1,
     'scale'  : 10,
     'mixture' : 0.8
@@ -56,13 +55,13 @@ priors = (lambda x : {
 
 # Run the MCMC
 mcmc.run_MCMC(
-    faps_data= am_data,
-    initial_parameters = initial_model,
+    data= am_data,
+    initial_parameters = initial_parameters,
     proposal_sigma = proposal_sigma,
     priors = priors,
     thin=thin,
     nreps=nreps,
-    output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
+    output_dir = os.path.dirname(os.path.abspath(__file__))+'/',
     chain_name = os.path.splitext(os.path.basename(__file__))[0],
     max_distance = max_distance
     )

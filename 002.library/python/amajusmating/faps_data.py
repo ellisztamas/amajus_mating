@@ -36,9 +36,16 @@ class faps_data(object):
         self.distances = dispersal.distance_matrix(gps.loc[self.mothers].to_numpy(), self.gps.to_numpy())
         assert self.distances.shape == (len(self.mothers), n_candidates)
 
+        # Boolean matrix indicating when mothers (rows) have the same flower
+        # colour as candidate fathers (columns).
+        maternal_colours  = self.flower_colours.loc[self.mothers].to_numpy()[:, np.newaxis]
+        candidate_colours = self.flower_colours.to_numpy()[np.newaxis]
+        self.matches = maternal_colours == candidate_colours
+
+        # Empty dictionary to store probabilities for covariates
         self.covariates = {}
 
-    def update_missing_dads(self, x:float):
+    def update_missing_dads(self, x):
         """
         Update the proportion of missing fathers in each paternity array
 
@@ -83,7 +90,8 @@ class faps_data(object):
             x     = self.distances,
             scale = scale,
             shape = shape,
-            w     = mixture)
+            w     = mixture
+            )
         # Identify candidates who are further than the threshold distance
         # and set their log likelihoods to negative infinity
         ix = self.distances > max_distance
@@ -93,6 +101,30 @@ class faps_data(object):
         self.params['shape'] = shape
         self.params['scale'] = scale
         self.params['mixture'] = mixture
+
+    def update_assortment_probs(self, p):
+        """
+        Update assortative mating probabilities.
+
+        Flower colours of mothers and candidate fathers mate with probability p
+        if they are of the same phenotype (i.e. if their element in `self. assortment`
+        is True) and with probability 1-p if not.
+
+        Parameters
+        ----------
+        p: float between 0 and 1.
+        """
+        assert(p >= 0)
+        assert(p <= 1)
+        # Assign probability p for pairs of individuals of the same phenotype
+        # 1-p for pairs that are different
+        assortment = np.where(self.matches, p, 1-p)
+        # Normalise rows and log.
+        assortment = assortment / assortment.sum(1, keepdims=True)
+        assortment = np.log(assortment)
+        # Update parameters
+        self.covariates['assortment'] = assortment
+        self.params['assortment'] = p
 
     def sibship_clustering(self, ndraws:int=100, use_covariates:bool=True):
         """
@@ -111,11 +143,14 @@ class faps_data(object):
         List of sibshipCluster_objects
         """
         # Incorporate into paternity_arrays
-        if self.covariates == {}:
-            if use_covariates: raise ValueError("use_covariates is True, but no data about covariates have been supplied.")
+        if self.covariates == {} and use_covariates:
+            raise ValueError("use_covariates is True, but no data about covariates have been supplied.")
 
         else:
-            prob_drawn = sum(self.covariates.values())            
+            # Multiply covariate probabilities, and normalise rows to sum to 1.
+            prob_drawn = sum(self.covariates.values())
+            prob_drawn - fp.alogsumexp(prob_drawn)
+
             for (p,s) in zip(self.mothers, prob_drawn):
                 self.paternity[p].add_covariate(s)
 
@@ -125,97 +160,3 @@ class faps_data(object):
         self.params['loglik'] = np.array([fp.alogsumexp(s.lik_partitions) for s in self.sibships.values()]).sum()
 
         return None
-
-    def run_MCMC(self, initial_parameters, proposal_sigma, priors, nreps, output_dir, chain_name, thin=1, max_distance = np.inf):
-        """
-        A wrapper function to run Metropolis-Hastings MCMC for paternity and dispersal.
-
-        Parameters
-        ----------
-        initial_parameters: dict
-            Dictionary of starting values for the parameters, with the names as keys and 
-            values as floats for the parameter values. Usually this would include the
-            'shape' and 'scale' parameters of for the generalised normal distribution,
-            the proportion of 'missing' fathers and mixture parameter 'lambda'.
-        proposal_sigma: dict
-            Dictionary giving the standard deviation of the normal distribution by which
-            to peturb parameters at each iteration. Should have the same keys as 
-            `initial_parameters`.
-        nreps: int
-            Number of iterations to run
-        output_dir: str
-            Directory to save the output.    
-        chain_name: str
-            Name for the output file, without a suffix.
-        thin: int
-            Optional thinning argument. If >1, every one in `thin` samples will be written
-            to disk.
-        max_distance: float, int
-            Maximum distance from the mother a candidate may be. Candidates further than
-            this value will have their posterior probability of paternity set to zero.
-            This is equivalent to setting a threshold prior on distance.
-        
-        """
-        current_model = initial_parameters
-
-        # For the first iteration, start with an arbitary probabilities
-        # It doesn't matter, because for MH-ratio skips the first iteration by default.
-        current_model['log_prior']     = -10e12
-        current_model['loglik']        = -10e12
-        current_model['log_posterior'] = -10e12
-        # Set up the datafiles
-        out_file = output_dir + chain_name
-        mcmc.setup_output(out_file, current_model, proposal_sigma, nreps, thin)
-
-        #  IMPORT AND FORMAT DATA.
-        t0 = time()
-
-        # RUN THE MCMC.
-        for i in tqdm(range(nreps)):
-            # UPDATE PARAMETERS
-            new_model = mcmc.update_parameters(current_model, proposal_sigma)
-            # Calculate log prior probabilities of the new model.
-            prior_probs = list(priors(new_model).values())
-            new_model['log_prior'] = np.log(prior_probs).sum()
-
-            # LOG PROBABILITIES OF PATERNITY FOR EACH PARAMETER
-            # Update proportion of missing fathers
-            self.update_missing_dads(new_model['missing'])
-            # Update dispersal
-            self.update_dispersal_probs(
-                scale = new_model['scale'],
-                shape = new_model['shape'],
-                mixture = new_model['mixture']
-            )
-            # Identify candidates who are further than the distance threshold
-            # and set their log likelihoods to negative infinity
-            ix = self.distances > max_distance
-            self.covariates['dispersal'][ix] = -np.inf
-
-            # INFER FAMILIES
-            # Incorporate covariate information into paternity_arrays
-            cov = sum(self.covariates.values())
-            for (p,s) in zip(self.paternity, cov):
-                self.paternity[p].add_covariate(s)
-            # Cluster into families and get likelihoods
-            self.sibship_clustering(ndraws=100, use_covariates=True)
-
-            # Probability components for the new model.
-            new_model['loglik'] = np.array([fp.alogsumexp(s.lik_partitions) for s in self.sibships.values()]).sum()
-            new_model['log_posterior'] = new_model['loglik'] + new_model['log_prior']
-
-            # Decide whether to accept the new model.
-            accept = mcmc.mh_ratio(
-                current = current_model['log_posterior'],
-                new     = new_model['log_posterior']
-            )
-            if accept:
-                current_model = new_model
-
-            # write iteration to disk
-            if(i in np.arange(start = 0, stop = nreps, step=thin)):
-                mcmc.write_output(out_file + '.out', i, current_model, decimals=3, time0=t0)
-        
-        log_file = open(output_dir + chain_name + ".log", 'a')
-        log_file.write('\nMCMC completed {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S")))
-        log_file.close()

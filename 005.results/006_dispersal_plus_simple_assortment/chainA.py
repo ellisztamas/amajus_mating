@@ -1,62 +1,70 @@
 #!/usr/bin/env python3
 
 """
-Tom Ellis, 26th January 2021
+Tom Ellis, 27th May 2021
 
 Script to run joint analysis of paternity, sibships and dispersal using
-priors that are very skeptical about kurtosis (0.4% of the prior mass is 
-below 2).
+priors that are fairly skeptical about kurtosis (most of the prior mass on
+shape is between 1 and 3).
 """
 
 # Import external packages
+# from typing import runtime_checkable
+# from typing_extensions import runtime
 import numpy as np
-from faps import *
 import os
+# from numpy.core.fromnumeric import amax
+from scipy.stats import beta
+from scipy.stats import gamma as gma
 
-# import local modules.
-from run_MCMC import run_MCMC
-
+from amajusmating import mcmc
 
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 10500 # Total number of iterations to run
-thin  = 10 # How often to write samples.
-np.random.seed(8200)
+nreps = 100 # Total number of iterations to run
+thin  = 1 # How often to write samples.
+np.random.seed(1246)
 max_distance = np.inf
 
 # Dictionary listing starting values.
-initial_model = {
-    'loglik' : -10e12, # set initial likelihood to a very small number
-    'missing' : 0.15, # proportion missing fathers
+initial_parameters = {
+    'missing' : 0.2, # proportion missing fathers
     'shape'  : 1,
     'scale'  : 10,
-    'lambda' : 0.8,
-    'assortment': 0.3
+    'mixture' : 0.8,
+    'assortment' : 0.5
 }
 
 # Proposed values are a Gaussian peturbation away from the previous values.
 # This is controlled by the sigma of the gaussian, which is defined for each variable
 proposal_sigma = {
-    'missing' : 0.025,
+    'missing' : 0.0,
     'shape'  : 0.05,
     'scale'  : 2,
-    'lambda' : 0.025,
-    'assortment': 0.025
+    'mixture' : 0.025,
+    "assortment": 0.025
 }
 
+# PRIORS
+priors = (lambda x : {
+    'missing' : beta.pdf(x['missing'], a=3,   b=15),
+    'mixture' : beta.pdf(x['mixture'], a=1.1, b=1.1),
+    'shape'   : gma.pdf(x['shape'],   a=10,  scale = 1/5),
+    'scale'   : gma.pdf(x['scale'],   a=6,   scale = 50),
+    'assortment' : beta.pdf(x['assortment'], a=1.1, b=1.1)
+})
+
 # Run the MCMC
-run_MCMC(
-    paternity_arrays = patlik,
-    distance_matrix = distance_matrix,
-    maternal_phenotypes = mothers_colour_genotypes['simple_colour'],
-    paternal_phenotypes = ros_sulf['simple_colour'], 
-    initial_parameters = initial_model,
+mcmc.run_MCMC(
+    data= am_data,
+    initial_parameters = initial_parameters,
     proposal_sigma = proposal_sigma,
+    priors = priors,
     thin=thin,
     nreps=nreps,
     output_dir= os.path.dirname(os.path.abspath(__file__))+'/',
     chain_name = os.path.splitext(os.path.basename(__file__))[0],
     max_distance = max_distance
-)
+    )

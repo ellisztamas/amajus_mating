@@ -2,7 +2,6 @@ import pytest
 import numpy as np
 
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
-am_data = am_data
 
 def test_there_are_60_mothers():
     assert len(am_data.paternity) == 60
@@ -25,6 +24,11 @@ def test_update_dispersal():
     am_data.update_dispersal_probs(scale=10.0, shape=2.0, mixture = 0.8, max_distance= 500)
     assert np.isinf(am_data.covariates['dispersal']).any()
     assert not np.isinf(am_data.covariates['dispersal']).all()
+
+def test_update_assortment():
+    am_data.update_assortment_probs(0.1)
+    assert am_data.covariates['assortment'].shape == (60,2094)
+    assert np.isfinite(am_data.covariates['assortment'])
 
 def test_sibship_clustering():
     with pytest.raises(KeyError):

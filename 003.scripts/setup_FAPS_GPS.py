@@ -21,6 +21,8 @@ from os.path import isfile
 # Import local modules
 from amajusmating import faps_data
 
+print("Setting up genotype, flower-colour and GPS information using FAPS version {}.\n".format(fp.__version__))
+
 # GENOTYPE DATA
 # Genotyping error rate.
 mu=0.0013
@@ -57,7 +59,7 @@ else:
     mothers = adults.subset(individuals=progeny.mothers)
     # Create the paternity array and save for later.
     patlik = fp.paternity_array(
-        progeny, mothers, adults, mu = mu, missing_parents= 0.15, integration='full'
+        progeny, mothers, adults, mu = mu, missing_parents= 0.2, integration='full'
         )
     patlik.write("004.output/paternity_array.csv")
 
@@ -76,13 +78,6 @@ gps = gps.loc[adults.names] # reorder to match cleaned SNP data
 gps = gps[['Easting','Northing']] # remove the column for altitude. We don't need that here.
 # gps_mothers = gps.loc[mothers.keys()] # GPS coordinates for the mothers only.
 
-# # create a matrix of distances between
-# distance_matrix = (gps_mothers.values[np.newaxis] - gps.values[:, np.newaxis])**2
-# distance_matrix = distance_matrix.sum(axis=2)
-# distance_matrix = np.sqrt(distance_matrix).T
-# # Make that matrix a distionary, with a labelled vector for each mother
-# distances = {k:v for k,v in zip(mothers.keys(), distance_matrix)}
-
 # FLOWER COLOUR
 # Import flower colour data for the population
 ros_sulf = pd.read_csv('001.data/002.processed/rosea_sulfurea.csv', index_col='id')
@@ -90,10 +85,6 @@ ros_sulf = ros_sulf.loc[adults.names] # ensure data are in the same order as for
 # Simplify flower colours to yellow, full red or hybrid
 ros_sulf['simple_colour'] = 'hybrid'
 ros_sulf.loc[ros_sulf['flower_colour'].isin(['FR',"Ye"]), 'simple_colour'] = ros_sulf['flower_colour']
-# # subset flower colour data for the mothers only.
-# mothers_colour_genotypes = ros_sulf.loc[mothers.keys()]
-
-# mothers_colour_genotypes['simple_colour'].to_numpy()[:,np.newaxis] == ros_sulf['simple_colour'].to_numpy()[np.newaxis]
 
 # Create a class object to hold the data.
 am_data = faps_data(
@@ -103,6 +94,7 @@ am_data = faps_data(
     params = {}
     )
 
+# Remove variables we don't need anymore.
 del(progeny, md, r, h, ros_sulf, patlik, lx, adults, mothers)
 
 
