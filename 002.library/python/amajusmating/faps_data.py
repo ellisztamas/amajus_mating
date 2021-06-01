@@ -18,6 +18,7 @@ class faps_data(object):
         self.paternity = paternity
         self.gps = gps
         self.flower_colours = flower_colours
+        self.candidates = list(gps.index)
         self.params = {}
 
         # Check the mothers are present in data files.
@@ -30,11 +31,11 @@ class faps_data(object):
         # Check there are the expected numbers of fathers
         n_candidates = [len(v.candidates) for v in self.paternity.values()]
         assert n_candidates.count(n_candidates[0]) == len(n_candidates)
-        n_candidates = n_candidates[0]
+        self.n_candidates = n_candidates[0]
 
         # Distance matrix
         self.distances = dispersal.distance_matrix(gps.loc[self.mothers].to_numpy(), self.gps.to_numpy())
-        assert self.distances.shape == (len(self.mothers), n_candidates)
+        assert self.distances.shape == (len(self.mothers), self.n_candidates)
 
         # Boolean matrix indicating when mothers (rows) have the same flower
         # colour as candidate fathers (columns).

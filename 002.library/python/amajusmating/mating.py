@@ -1,212 +1,82 @@
 from warnings import warn
 import numpy as np
 import pandas as pd
-from faps import sibshipCluster
+import faps as fp
 
-def assortment_probs(focal, candidates, params):
+def observed_sires(data, model, ndraws = 1000, max_distance = np.inf):
     """
-    Calculate the log probabilities of mating between pairs of individuals
-    given a vector of assortment probabilities.
+    List possible mating events with their probabilities, distance
+    between parents and flower colours of the parents, integrating out
+    uncertainty in sibship structure.
 
-    It is assumed that mothers of a certain phenotype mate with individuals
-    of the same phenotype with some assortment parameter, a, and with
-    individuals of any other phenotype with probability 1-a.
+    This runs sibship clustering on each family, including covariate,
+    information on each family, then calls `sires()` on each.
 
     Parameters
     ----------
-    focal: vector
-        Vector of phenotypes of the mothers. Cannot contain missing data.
-    candidates: vector
-        Vector of phenotypes of the candidate fathers. Can contain missing
-        data.
-    params: dict
-        Dictionary containing assortment parameters for each genotype.
+    data: `faps_data` class object
+        Data about the population.
+    model: dict
+        Dictionary of starting model parameters. Keys should be a subset of
+        ['missing', 'shape', 'scale', 'mixture', 'assortment'] and values 
+        floats giving initial values for those parameters, within appropriate
+        boundaries.
+    ndraws: int, optional
+        Number of Monte Carlo draws to perform for sibship clustering. Defaults
+        to 1000.
+    max_distance: float, int
+        Maximum distance from the mother a candidate may be. Candidates further than
+        this value will have their posterior probability of paternity set to zero.
+        This is equivalent to setting a threshold prior on distance.
 
     Returns
     -------
-    Array of log probabilities of mating with a row for each mother and a
-    column for each candidate.
+    A data frame listing plausible mating events, giving probability that mating
+    between pairs occurred (proportion of valid partitions in which the candidate
+    appears), most likely number of offspring sired within the family (weighted 
+    average over valid partitions), the distance between mother and father, their
+    flower colours, and whether colours match.
     """
-    # unique list of all phenotypes in the focal phenotypes.
-    phens = focal.unique().tolist()
+    # Update data with parameter values
+    # Update missing fathers
+    data.update_missing_dads(model['missing'])
+    # Update dispersal
+    data.update_dispersal_probs(
+        scale = model['scale'],
+        shape = model['shape'],
+        mixture = model['mixture']
+    )
+    # Identify candidates who are further than the distance threshold
+    # and set their log likelihoods to negative infinity
+    ix = data.distances > max_distance
+    data.covariates['dispersal'][ix] = -np.inf
+    # Assortment, if used.
+    if "assortment" in model.keys():
+        data.update_assortment_probs(model['assortment'])
 
-    # Identify candidates with missing data and randomly assign another phenotype.
-    NAs = np.where(candidates.isna())[0]
-    replacements = np.random.choice(phens, size=len(NAs), replace=True)
-    candidates[NAs] = replacements
+    # Cluster into sibships, if not already done.
+    if not hasattr(data, 'sibships'):
+        data.sibship_clustering(ndraws = ndraws, use_covariates = True)
+    # Call siring events
+    data.sires = fp.summarise_sires(data.sibships)
 
-    # Dictionary of assortment parameters for each phenotype.
-    # This is necessary if the input dictionary contains other parameters
-    # not related to assortment.
-    params = {k:v for k,v in params.items() if k in phens}
-
-    if all([x in params for x in phens]):
-        ass_matrix = np.zeros([len(focal), len(candidates)])
-        for k in phens:
-            # indices of mothers and candidates of phenotype k
-            ix = np.where(focal      == k)[0][:, np.newaxis]
-            jx = np.where(candidates == k)[0][   np.newaxis]
-            # Insert assortment parameters into ass_matrix
-            ass_matrix[ix] += (1-params[k]) # set all values to 1-a
-            ass_matrix[ix, jx] = params[k] # For candidates that match the mother, set values to a.
-        # Normalise and log transform
-        ass_matrix = ass_matrix / ass_matrix.sum(1, keepdims=True)
-        ass_matrix = np.log(ass_matrix)
-
-        return ass_matrix
-    else:
-        raise ValueError("Not all phenotypes values present in the focal phenotypes have an assortment parameter.")
-
-def bin_mating(observed, expected, genotypes, geno_col, gps, breaks, assortment=False):
-    """
-    Calculate likelihoods of mating between each combination of genotypes.
-
-    Parameters
-    ----------
-    observed: DataFrame
-        Dataframe with columns 'mother', 'father', 'prob', giving IDs for
-        the parents, and a probability of mating having occured between them.
-        You can get this by running summarise_sibships() over dictionary of
-        sibshipArray clusters.
-    expected: DataFrame
-        Dataframe with columns 'mother', 'father', 'prob', giving IDs for
-        the parents, and a probability of mating having occured between them
-        under random mating.
-    genotypes: DataFrame
-        Dataframe whose index gives the individual ID, and subsequent giving
-        genotypes for one or more loci. The genotype column to use is set by
-        geno_col
-    geno_col: str
-        Column in `genotypes` to use.
-    gps: DataFrame
-        Dataframe whose keys index individuals, with columns for "Easting"
-        and "Northing".
-    breaks: int or array
-        To be passed to `bins` argument of pd.Series.cut().
-    assortment: bool
-        If True, returns probabilities of mating between pairs of individuals
-        of the same phentoype. Defaults to False.
-
-    Returns
-    -------
-    Dataframe giving likelihoods of receiving pollen from each paternal
-    genotype in each bin.
-    """
-    # Format genotype data.
-    genotypes = genotypes.\
-    reset_index().\
-    filter(['id', geno_col])
-    # GPS positions of the mothers
-    mums_gps = gps.copy().loc[observed['mother']]['Easting'].reset_index()
-
-    # Pull out paternal phenotypes
-    observed = pd.merge(observed, genotypes, left_on='father', right_on="id", how='left')
-    expected = pd.merge(expected, genotypes, left_on='father', right_on="id", how='left')
-    # Tidy phenotype names
-    observed = observed.rename(columns={geno_col:'dad_pheno'})
-    expected = expected.rename(columns={geno_col:'dad_pheno'})
-
-    # Pull out maternal phenotypes
-    observed = pd.merge(observed, genotypes, left_on='mother', right_on="id" , how='left')
-    expected = pd.merge(expected, genotypes, left_on='mother', right_on="id" , how='left')
-    # Tidy phenotype names
-    observed = observed.rename(columns={geno_col:'mum_pheno'})
-    expected = expected.rename(columns={geno_col:'mum_pheno'})
-    #Pull out GPS locations of the mother
-    observed['Easting'] = gps.loc[observed['mother']]['Easting'].to_numpy()
-    expected['Easting'] = gps.loc[expected['mother']]['Easting'].to_numpy()
-    # Label for each candidate by spatial bin
-    observed['bin'] = pd.cut(observed['Easting'], breaks)
-    expected['bin'] = pd.cut(expected['Easting'], breaks)
-
-    if not assortment:
-        # Calcuate observed and expected probs of receiving pollen from each genotype in each bin.
-        x = observed.groupby(['bin', 'dad_pheno']).sum().groupby('bin').apply(lambda x: x / x.sum())
-        x['exp'] = expected.groupby(['bin', 'dad_pheno']).sum().groupby('bin').apply(lambda x: x / x.sum())['prob']
-        x['diff']  = x['prob'] - x['exp']
-        x['ratio'] = x['prob'] / x['exp']
-
-    else:
-        # Vectors stating whether mothers and fathers were the same phenotype
-        observed['match'] = observed['mum_pheno'] == observed['dad_pheno']
-        expected['match'] = expected['mum_pheno'] == expected['dad_pheno']
-
-        # Calcuate observed and expected probs of receiving pollen from each genotype in each bin.
-        x = observed.groupby(['bin', 'match']).sum().groupby('bin').apply(lambda x: x / x.sum())
-        x['exp'] = expected.groupby(['bin', 'match']).sum().groupby('bin').apply(lambda x: x / x.sum())['prob']
-        x['diff']  = x['prob'] - x['exp']
-        x['ratio'] = x['prob'] / x['exp']
-
-    x = x.\
-    rename(columns = {'prob': 'obs'}).\
-    filter(['iter','obs', 'exp', 'diff', 'ratio'])
-
-    return x
-
-def mating_probabilities(siring_probabilities, genotypes, geno_col, drop_na=False):
-    """
-    Calculate likelihoods of mating between each combination of genotypes.
-
-    Parameters
-    ----------
-    siring_probabilities: DataFrame
-        Dataframe with columns 'mother', 'father', 'prob', giving IDs for
-        the parents, and a probability of mating having occured between them.
-        You can get this by running summarise_sibships() over dictionary of
-        sibshipArray clusters.
-    genotypes: DataFrame
-        Dataframe whose index gives the individual ID, and subsequent giving
-        genotypes for one or more loci. The genotype column to use is set by
-        geno_col
-    geno_col: str
-        Column in `genotypes` to use.
-    drop_na: boolean, optional
-        If True, NA genotypes are ignored.
-
-    Returns
-    -------
-    Dataframe giving likelihoods of mating for each combination of genotypes.
-    'prob' shows the probability that a mother of that genotype receives pollen
-    from that genotype, normalised to sum to one.
-    """
-    # If this function makes it into the FAPS package, add additional check here!
-
-    if geno_col not in genotypes.columns:
-        raise ValueError("geno_col not found in the columns of genotypes.")
-
-    # Dataframe of paternal gentoypes in the same order as in sires.
-    dads_phens = genotypes.loc[siring_probabilities['father']]
-    dads_phens = dads_phens.reset_index(drop=True)
-    # Same for the mothers
-    mums_phens = genotypes.loc[siring_probabilities['mother']]
-    mums_phens = mums_phens.reset_index(drop=True)
-    # Unique genotypes
-    if drop_na:
-        geno = genotypes[geno_col].dropna().unique()
-    else:
-        geno = genotypes[geno_col].unique()
-
-    # Loop over each combination of genotypes and pull out probabilities of mating.
-    output = []
-    for maternal in geno:
-        for paternal in geno:
-            gx  = (mums_phens[geno_col] == maternal) & (dads_phens[geno_col] == paternal)
-            gx = np.where(gx)[0]
-            # Get mating likleihoods
-            df = siring_probabilities.iloc[gx] # Subset of matings for this combination of genotypes
-            df = df['prob'].sum()
-            output = output + [[maternal, paternal, df]]
-    # Join them together
-    output = pd.DataFrame(output, columns = ['maternal', 'paternal', 'lik'])
-    # Give probabilities of mating for each mother that sum to 1.
-    xv = output.groupby("maternal").sum().to_numpy() # Sum likelihoods for maternal genotypes
-    output['prob'] = output['lik'] / np.repeat(xv, len(geno)) # divide by sums
+    # Add data on distance between mother and father and flower colours.
+    # Turn distance matrix into a data frame so we can use .loc on it.
+    distance_df = pd.DataFrame({
+        'mother'   : np.repeat(list(data.mothers), data.n_candidates),
+        'father'   : np.tile(data.candidates, len(data.mothers)),
+        'distance' : data.distances.flatten()
+    })
+    # Merge siring events with distances and phenotypes.
+    output = (data.sires.merge(distance_df, how="left", on=['mother', 'father']).
+    merge(data.flower_colours, how="left", left_on="mother", right_index=True).
+    merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
+    )
+    output.assign(match = output['simple_colour_mother'] == output['simple_colour_father'])
 
     return output
 
-
-
-def random_sires(sibships, probs):
+def random_sires(data, probs):
     """
     Calculate likelihoods of mating for arbitrary arrays of mating
     probabilities.
@@ -237,12 +107,14 @@ def random_sires(sibships, probs):
     fathers (inherited from each sibshipCluster object), and probabilties of
     having sired at least one offspring.
     """
+    # Cluster into sibships, if not already done.
+    if not hasattr(data, 'sibships'):
+        data.sibship_clustering(ndraws = ndraws, use_covariates = True)
+
     # Check dictionary of sibships.
-    if not isinstance(sibships, dict):
-        raise TypeError("`sibships` should be a dictionary of sibshipCluster onjects.")
-    if not all([isinstance(x, sibshipCluster) for x in sibships.values()]):
-        raise TypeError("Not all elements of `sibships` are sibshipCluster objects.")
-    if isinstance(sibships, sibshipCluster):
+    if not all([isinstance(x, sibshipCluster) for x in data.sibships.values()]):
+        raise TypeError("Not all elements of `data.sibships` are sibshipCluster objects.")
+    if isinstance(data.sibships, sibshipCluster):
         raise TypeError("`summarise_sires` is intended to work on a dictionary of sibshipCluster objects, but a single sibshipCluster object was supplied. In this case, call `sires()` directly on the onject, i.e. object.sires().")
 
     # Check proabbilties are log
@@ -251,31 +123,31 @@ def random_sires(sibships, probs):
             "These ought to be log probabilties, which are negative. " \
             "random_sires will run, but results are likely to be garbage."
         )
-    # Check nrows match number of sibships
-    if probs.shape[0] != len(sibships.keys()):
+    # Check nrows match number of data.sibships
+    if probs.shape[0] != len(data.sibships.keys()):
         raise ValueError(
-            "Matrix of probabilities has {} rows but there are {} sibshipCluster objects".format(probs.shape[0],len(sibships.keys()))
+            "Matrix of probabilities has {} rows but there are {} sibshipCluster objects".format(probs.shape[0],len(data.sibships.keys()))
         )
     # Check n columns matches number of candidates
-    ncandidates = [len(x.candidates) for x in sibships.values()][0]
+    ncandidates = [len(x.candidates) for x in data.sibships.values()][0]
     if probs.shape[1] != ncandidates:
         raise ValueError(
             "Matrix of probabilities has {} columns but there are {} sibshipCluster objects".format(probs.shape[1], ncandidates)
         )
 
     # Expected number of mating events for each maternal family.
-    n_sires = [x.mean_nfamilies() for x in sibships.values()]
+    n_sires = [x.mean_nfamilies() for x in data.sibships.values()]
     n_sires = np.log(n_sires)
     # Multiply mating probabilities for each candidate by the number of opportunities to mate
     exp_liks = probs + n_sires[:, np.newaxis]
     # If there are likelihoods above 1, set threshold to 1
     # exp_liks[exp_liks > 0] = 0
     # Make it a dictionary so we can iterate over keys later
-    exp_liks = {k: v for k,v in zip(sibships.keys(), exp_liks)}
+    exp_liks = {k: v for k,v in zip(data.sibships.keys(), exp_liks)}
 
     # Create a table in the same format as summarise_sires() would generate.
     output = []
-    for k,v in sibships.items():
+    for k,v in data.sibships.items():
         this_df = pd.DataFrame({
             'mother'   : k,
             'father'   : v.candidates,
