@@ -230,15 +230,15 @@ def run_MCMC(data, initial_parameters, proposal_sigma, priors, nreps, output_dir
             This is equivalent to setting a threshold prior on distance.
         
         """
+        # Set up the datafiles
+        out_file = output_dir + chain_name
+        setup_output(out_file, initial_parameters, proposal_sigma, nreps, thin)
+        t0 = time()
+        
         # Check that parameters supplied can be evaluated.
         # For the first iteration, start with an arbitary probabilities
         # It doesn't matter, because for MH-ratio skips the first iteration by default.
         current_model = check_parameters(initial_parameters, proposal_sigma)
-
-        # Set up the datafiles
-        out_file = output_dir + chain_name
-        setup_output(out_file, current_model, proposal_sigma, nreps, thin)
-        t0 = time()
 
         # RUN THE MCMC.
         for i in tqdm(range(nreps)):
