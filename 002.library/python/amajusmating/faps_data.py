@@ -126,6 +126,65 @@ class faps_data(object):
         # Update parameters
         self.covariates['assortment'] = assortment
         self.params['assortment'] = p
+    
+    def update_covariate_probs(self, model, max_distance=np.inf):
+        """
+        Set up probabililty matrices for each covariate based on function 
+        parameters for each.
+
+        Parameters
+        ----------
+        model: dict
+            Dictionary of starting model parameters. Keys should be a subset of
+            ['missing', 'shape', 'scale', 'mixture', 'assortment'] and values 
+            floats giving initial values for those parameters, within appropriate
+            boundaries.
+        max_distance: float, int
+            Maximum distance from the mother a candidate may be. Candidates further than
+            this value will have their posterior probability of paternity set to zero.
+            This is equivalent to setting a threshold prior on distance.
+
+        Returns
+        -------
+        Updates (log) probabilities in each matrix of self.covariates, sums these,
+        and adds these into each paternity array in self.paternity.covariates for 
+        sibship clustering.
+        """
+        # Check things stay within boundaries
+        if model['mixture'] > 1.0 or model['mixture'] < 0:
+            raise ValueError('"mixture" parameter should be between 0 and 1.')
+        if model['missing'] > 1.0 or model['missing'] < 0:
+            raise ValueError('"missing" parameter should be between 0 and 1.')
+        if model['shape'] <= 0:
+            raise ValueError("'shape' parameter should be positive.")
+        if model['scale'] <= 0:
+            raise ValueError("'scale' parameter should be positive.")
+        if "assortment" in model.keys():
+            if model['assortment'] > 1.0 or model['assortment'] < 0:
+                raise ValueError('"assortment" parameter should be between 0 and 1.')
+                
+        # Update data with parameter values
+        # Update missing fathers
+        self.update_missing_dads(model['missing'])
+        # Update dispersal
+        self.update_dispersal_probs(
+            scale = model['scale'],
+            shape = model['shape'],
+            mixture = model['mixture']
+        )
+        # Identify candidates who are further than the distance threshold
+        # and set their log likelihoods to negative infinity
+        ix = self.distances > max_distance
+        self.covariates['dispersal'][ix] = -np.inf
+
+        # Assortment, if used.
+        if "assortment" in model.keys():
+            self.update_assortment_probs(model['assortment'])
+
+        # Incorporate covariate information into paternity_arrays
+        cov = sum(self.covariates.values())
+        for (p,s) in zip(self.paternity, cov):
+            self.paternity[p].add_covariate(s)
 
     def sibship_clustering(self, ndraws:int=100, use_covariates:bool=True):
         """

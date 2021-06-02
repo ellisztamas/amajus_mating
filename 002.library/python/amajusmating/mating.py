@@ -39,20 +39,7 @@ def observed_sires(data, model, ndraws = 1000, max_distance = np.inf):
     """
     # Update data with parameter values
     # Update missing fathers
-    data.update_missing_dads(model['missing'])
-    # Update dispersal
-    data.update_dispersal_probs(
-        scale = model['scale'],
-        shape = model['shape'],
-        mixture = model['mixture']
-    )
-    # Identify candidates who are further than the distance threshold
-    # and set their log likelihoods to negative infinity
-    ix = data.distances > max_distance
-    data.covariates['dispersal'][ix] = -np.inf
-    # Assortment, if used.
-    if "assortment" in model.keys():
-        data.update_assortment_probs(model['assortment'])
+    data.update_covariate_probs(model = model, max_distance = max_distance)
 
     # Cluster into sibships, if not already done.
     if not hasattr(data, 'sibships'):

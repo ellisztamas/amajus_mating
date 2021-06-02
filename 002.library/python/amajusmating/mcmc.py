@@ -230,50 +230,30 @@ def run_MCMC(data, initial_parameters, proposal_sigma, priors, nreps, output_dir
             This is equivalent to setting a threshold prior on distance.
         
         """
-        # Set up the datafiles
-        out_file = output_dir + chain_name
-        setup_output(out_file, initial_parameters, proposal_sigma, nreps, thin)
-        t0 = time()
         
         # Check that parameters supplied can be evaluated.
         # For the first iteration, start with an arbitary probabilities
         # It doesn't matter, because for MH-ratio skips the first iteration by default.
         current_model = check_parameters(initial_parameters, proposal_sigma)
 
+        # Set up the datafiles
+        out_file = output_dir + chain_name
+        setup_output(out_file, current_model, proposal_sigma, nreps, thin)
+        t0 = time()
+
         # RUN THE MCMC.
         for i in tqdm(range(nreps)):
             # UPDATE PARAMETERS
             new_model = update_parameters(current_model, proposal_sigma)
-            # Calculate log prior probabilities of the new model.
-            prior_probs = list(priors(new_model).values())
-            new_model['log_prior'] = np.log(prior_probs).sum()
-
-            # LOG PROBABILITIES OF PATERNITY FOR EACH PARAMETER
-            # Update proportion of missing fathers
-            data.update_missing_dads(new_model['missing'])
-            # Update dispersal
-            data.update_dispersal_probs(
-                scale = new_model['scale'],
-                shape = new_model['shape'],
-                mixture = new_model['mixture']
-            )
-            # Identify candidates who are further than the distance threshold
-            # and set their log likelihoods to negative infinity
-            ix = data.distances > max_distance
-            data.covariates['dispersal'][ix] = -np.inf
-            # Assortment, if used.
-            if "assortment" in new_model.keys():
-                data.update_assortment_probs(new_model['assortment'])
+            data.update_covariate_probs(model=new_model, max_distance = max_distance)
             
             # INFER FAMILIES
-            # Incorporate covariate information into paternity_arrays
-            cov = sum(data.covariates.values())
-            for (p,s) in zip(data.paternity, cov):
-                data.paternity[p].add_covariate(s)
-            # Cluster into families and get likelihoods
+             # Cluster into families and get likelihoods
             data.sibship_clustering(ndraws=100, use_covariates=True)
 
             # Probability components for the new model.
+            prior_probs = list(priors(new_model).values())
+            new_model['log_prior'] = np.log(prior_probs).sum()
             new_model['loglik'] = np.array([fp.alogsumexp(s.lik_partitions) for s in data.sibships.values()]).sum()
             new_model['log_posterior'] = new_model['loglik'] + new_model['log_prior']
 

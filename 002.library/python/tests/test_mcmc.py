@@ -1,11 +1,20 @@
-import pytest
 import numpy as np
+import os
+import pandas as pd
+from scipy.stats import beta
+from scipy.stats import gamma as gma
 
 from amajusmating import mcmc
 
+# FAPS objects and distance matrices are generated in a separate script.
+exec(open('003.scripts/setup_FAPS_GPS.py').read())
+
+# INITIALISE THE MODEL
+np.random.seed(1246)
+
 # Dictionary listing starting values.
-initial_model = {
-    'missing' : 0.3, # proportion missing fathers
+initial_parameters = {
+    'missing' : 0.15, # proportion missing fathers
     'shape'  : 1,
     'scale'  : 10,
     'mixture' : 0.8
@@ -20,35 +29,35 @@ proposal_sigma = {
     'mixture' : 0.025,
 }
 
-def test_check_parmeter_output():
-    initial_model = {
-        'missing' : 0.3, # proportion missing fathers
-        'shape'  : 1,
-        'scale'  : 10,
-        'mixture' : 0.8
-    }
-    out = mcmc.check_parameters(initial_model)
-    assert isinstance(out, dict)
-    assert out.keys == initial_model.keys()
-    assert("assortment" not in out2.keys())
+# PRIORS
+priors = (lambda x : {
+    'missing' : beta.pdf(x['missing'], a=3,   b=15),
+    'mixture' : beta.pdf(x['mixture'], a=1.1, b=1.1),
+    'shape'   : gma.pdf(x['shape'],   a=10,  scale = 1/5),
+    'scale'   : gma.pdf(x['scale'],   a=6,   scale = 50)
+})
 
-    model2 = {
-        'missing' : 0.3, # proportion missing fathers
-        'shape'  : 1,
-        'scale'  : 10,
-        'mixture' : 0.8,
-        'assortment' : 0.5
-    }
-    out2 = mcmc.check_parameters(model2)
-    assert("assortment" in out2.keys())
+def test_mcmc():
+    folder = os.path.dirname(os.path.abspath(__file__))
+    file = "/mcmc_test_chain"
 
-    # Should raise ValueError because missing > 1
-    model3 = {
-        'missing' : 1.3, # proportion missing fathers
-        'shape'  : 1,
-        'scale'  : 10,
-        'mixture' : 0.8,
-        'assortment' : 0.5
-    }
-    with pytest.raises(Exception):
-        mcmc.check_parameters(model3)
+    chain = mcmc.run_MCMC(
+        data= am_data,
+        initial_parameters = initial_parameters,
+        proposal_sigma = proposal_sigma,
+        priors = priors,
+        thin=1,
+        nreps=3,
+        output_dir = folder,
+        chain_name = file,
+        max_distance = np.inf
+        )
+
+    assert os.path.exists(folder + file + ".out")
+    assert os.path.exists(folder + file + ".log")
+
+    dat = pd.read_csv("002.library/python/tests/mcmc_test_chain.out", sep="\t")
+    assert list(dat.keys()) == ['iter', 'hours', 'log_posterior', 'log_prior', 'loglik', 'missing', 'mixture', 'scale', 'shape']
+
+    os.remove(folder + file + ".out")
+    os.remove(folder + file + ".log")
