@@ -19,7 +19,6 @@ posterior_mating
     call observed_sires and random_sires on each
     return df for observed and random sires.
 """
-
 import numpy as np
 import pandas as pd
 
@@ -39,26 +38,3 @@ model = {
 def test_observed_sires():
     obs = mating.observed_sires(data= am_data, model = model)
     assert isinstance(obs, pd.core.frame.DataFrame)
-
-"""
-Take functions to update covariate probabilities and make a function out of that
-called `update_covariates` or something. i.e. this
-
-    # Update data with parameter values
-    # Update missing fathers
-    data.update_missing_dads(model['missing'])
-    # Update dispersal
-    data.update_dispersal_probs(
-        scale = model['scale'],
-        shape = model['shape'],
-        mixture = model['mixture']
-    )
-    # Identify candidates who are further than the distance threshold
-    # and set their log likelihoods to negative infinity
-    ix = data.distances > max_distance
-    data.covariates['dispersal'][ix] = -np.inf
-    # Assortment, if used.
-    if "assortment" in model.keys():
-        data.update_assortment_probs(model['assortment'])
-
-"""
