@@ -83,14 +83,15 @@ gps = gps[['Easting','Northing']] # remove the column for altitude. We don't nee
 ros_sulf = pd.read_csv('001.data/002.processed/rosea_sulfurea.csv', index_col='id')
 ros_sulf = ros_sulf.loc[adults.names] # ensure data are in the same order as for the genotype data
 # Simplify flower colours to yellow, full red or hybrid
-ros_sulf['simple_colour'] = 'hybrid'
+ros_sulf['simple_colour'] = 'unkown'
 ros_sulf.loc[ros_sulf['flower_colour'].isin(['FR',"Ye"]), 'simple_colour'] = ros_sulf['flower_colour']
+ros_sulf.loc[ros_sulf['flower_colour'].isin(['FO',"WR", "WO", "Wh"]), 'simple_colour'] = 'hybrid'
 
 # Create a class object to hold the data.
 am_data = faps_data(
     paternity=patlik,
     gps = gps,
-    flower_colours = ros_sulf['simple_colour'],
+    flower_colours = ros_sulf[['rosea','sulfurea', 'simple_colour']],
     params = {}
     )
 
