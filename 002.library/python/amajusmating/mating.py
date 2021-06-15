@@ -114,30 +114,30 @@ def random_sires(data, model, ndraws = 1000, max_distance = np.inf, threshold = 
         probs[i, j] = - np.inf
     probs = probs - fp.alogsumexp(probs, axis=1)[:, np.newaxis]
 
-# Cluster into sibships, if not already done.
-if not hasattr(data, 'sibships'):
-    data.sibship_clustering(ndraws = ndraws, use_covariates = True)
+    # Cluster into sibships, if not already done.
+    if not hasattr(data, 'sibships'):
+        data.sibship_clustering(ndraws = ndraws, use_covariates = True)
 
-# Expected number of mating events for each maternal family.
-n_sires = [x.mean_nfamilies() for x in data.sibships.values()]
-n_sires = np.log(n_sires)
-# Multiply mating probabilities for each candidate by the number of opportunities to mate
-exp_liks = probs + n_sires[:, np.newaxis]
-# If there are likelihoods above 1, set threshold to 1
-# exp_liks[exp_liks > 0] = 0
-# Make it a dictionary so we can iterate over keys later
-exp_liks = {k: v for k,v in zip(data.sibships.keys(), exp_liks)}
+    # Expected number of mating events for each maternal family.
+    n_sires = [x.mean_nfamilies() for x in data.sibships.values()]
+    n_sires = np.log(n_sires)
+    # Multiply mating probabilities for each candidate by the number of opportunities to mate
+    exp_liks = probs + n_sires[:, np.newaxis]
+    # If there are likelihoods above 1, set threshold to 1
+    # exp_liks[exp_liks > 0] = 0
+    # Make it a dictionary so we can iterate over keys later
+    exp_liks = {k: v for k,v in zip(data.sibships.keys(), exp_liks)}
 
-# Create a table in the same format as summarise_sires() would generate.
-output = []
-for k,v in data.sibships.items():
-    this_df = pd.DataFrame({
-        'mother'   : k,
-        'father'   : v.candidates,
-        'log_prob' : exp_liks[k],
-        'prob'     : np.exp(exp_liks[k])
-    })
-    output = output + [this_df]
-output = pd.concat(output)
+    # Create a table in the same format as summarise_sires() would generate.
+    output = []
+    for k,v in data.sibships.items():
+        this_df = pd.DataFrame({
+            'mother'   : k,
+            'father'   : v.candidates,
+            'log_prob' : exp_liks[k],
+            'prob'     : np.exp(exp_liks[k])
+        })
+        output = output + [this_df]
+    output = pd.concat(output)
 
     return output
