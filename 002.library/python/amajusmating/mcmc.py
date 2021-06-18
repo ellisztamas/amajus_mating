@@ -189,7 +189,7 @@ def write_output(path, i, model, decimals = 3, time0=None):
         t = np.round((time() - time0) / 3600, decimals)
 
     # Prepare a string of output data to be exported.
-    out = str(i) + '\t' + '\t' + str(t)
+    out = str(i) + '\t' + str(t)
     for k in sorted(model.keys()):
             out = out + '\t' + str(round(model[k], decimals))
     # write iteration to disk
