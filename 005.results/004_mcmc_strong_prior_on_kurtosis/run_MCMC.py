@@ -4,7 +4,9 @@
 Tom Ellis, 26th January 2021
 
 Script to run joint analysis of paternity, sibships and dispersal using
-priors that allow kurtosis but at short scales
+priors that are very skeptical about kurtosis (0.4% of the prior mass 
+for shape is below 2, going up to ~8), favouring models that are Gaussian
+or chubbier.
 """
 
 import numpy as np
@@ -32,8 +34,8 @@ seeds = np.random.randint(1e4, size=len(chains))
 priors = (lambda x : {
     'missing' : beta.pdf(x['missing'], a=3,   b=15),
     'mixture' : beta.pdf(x['mixture'], a=1.1, b=1.1),
-    'shape'   : gamma.pdf(x['shape'],   a=2,  scale = 1/2),
-    'scale'   : gamma.pdf(x['scale'],   a=2,   scale = 3)
+    'shape'   : gamma.pdf(x['shape'],   a=20,  scale = 1/5),
+    'scale'   : gamma.pdf(x['scale'],   a=2,   scale = 50)
 })
 
 # Proposed values are a Gaussian peturbation away from the previous values.
@@ -50,8 +52,8 @@ for i in chains:
         data= am_data,
         initial_parameters = {
             'missing' : beta.rvs(a=3, b = 15),
-            'shape'   : gamma.rvs(a=2,  scale = 1/2),
-            'scale'   : gamma.rvs(a=2,  scale = 3),
+            'shape'   : gamma.rvs(a=20,  scale = 1/5),
+            'scale'   : gamma.rvs(a=6,  scale = 50),
             'mixture' : beta.rvs(a=1.1, b = 1.1)
         },
         proposal_sigma = proposal_sigma,

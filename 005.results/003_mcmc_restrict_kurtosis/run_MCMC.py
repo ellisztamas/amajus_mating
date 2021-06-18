@@ -5,7 +5,8 @@ Tom Ellis, 27th May 2021
 
 Script to run joint analysis of paternity, sibships and dispersal using
 priors that are fairly skeptical about kurtosis (most of the prior mass on
-shape is between 1 and 3).
+shape is between 1 and 3). This allows for a fair amount of dispersal up 
+to ~500m, but is skeptical about dispersal beyond that.
 """
 import numpy as np
 import os
@@ -18,7 +19,7 @@ from amajusmating import mcmc
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 3500 # Total number of iterations to run
+nreps = 4500 # Total number of iterations to run
 thin  = 10 # How often to write samples.
 max_distance = np.inf # set a maximum dispersal distance
 # output_dir = "005.results/003_mcmc_restrict_kurtosis/output/"
@@ -45,7 +46,6 @@ proposal_sigma = {
     'mixture' : 0.025,
 }
 
-chains = [1,2,3,4]
 for i in chains:
     mcmc.run_MCMC(
         data= am_data,
