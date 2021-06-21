@@ -46,7 +46,7 @@ proposal_sigma = {
     'mixture' : 0.025,
 }
 
-for i in chains:
+for i in [1,2,3,4]:
     mcmc.run_MCMC(
         data= am_data,
         initial_parameters = {

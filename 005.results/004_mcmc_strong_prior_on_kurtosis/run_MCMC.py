@@ -27,8 +27,7 @@ max_distance = np.inf # set a maximum dispersal distance
 output_dir = os.path.dirname(os.path.abspath(__file__))+'/output/'
 os.makedirs(output_dir, exist_ok=True)
 
-np.random.seed(46)
-seeds = np.random.randint(1e4, size=len(chains))
+np.random.seed(406)
 
 # PRIORS
 priors = (lambda x : {
@@ -47,7 +46,7 @@ proposal_sigma = {
     'mixture' : 0.025,
 }
 
-for i in chains:
+for i in [1,2,3,4]:
     mcmc.run_MCMC(
         data= am_data,
         initial_parameters = {
