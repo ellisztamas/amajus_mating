@@ -139,5 +139,4 @@ def random_sires(data, model, ndraws = 1000, max_distance = np.inf, threshold = 
         })
         output = output + [this_df]
     output = pd.concat(output)
-
     return output

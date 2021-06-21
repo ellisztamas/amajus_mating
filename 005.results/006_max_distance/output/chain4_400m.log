@@ -1,0 +1,20 @@
+Metropolis-Hasting analysis mating in A. majus begun 2021-06-26 04:12:56 using FAPS version 2.6.5.
+Parameters to initiate the chain:
+{'log_posterior': -10000000000000.0,
+ 'log_prior': -10000000000000.0,
+ 'loglik': -10000000000000.0,
+ 'missing': 0.09595103213234911,
+ 'mixture': 0.3453447357351948,
+ 'scale': 164.18616569100948,
+ 'shape': 1.0168418409904094}
+
+Gaussian noise is applied to these values at each iteration with standard deviations:
+{'missing': 0.025, 'mixture': 0.025, 'scale': 2, 'shape': 0.05}
+
+Performing a total of 4500 steps, thinning every 10 iteration. Output will be saved to:
+/datadisk/Documents/Antirrhinum/amajus_mating/005.results/006_max_distance/output/chain4_400m.out
+Analysis begun 2021-06-26 04:12:56.
+
+MCMC set up. Beginning Markov chain...
+
+MCMC completed 2021-06-26 08:36:42.

@@ -121,7 +121,7 @@ def mh_ratio(current, new):
 
     return accept
 
-def setup_output(path, model, proposal_sigma, nreps, thin):
+def setup_output(path, model, proposal_sigma, nreps, thin, max_distance = None):
     """
     Set up a blank text file to store model parameters
     Parameters
@@ -150,6 +150,8 @@ def setup_output(path, model, proposal_sigma, nreps, thin):
     log_file.write('Metropolis-Hasting analysis mating in A. majus begun {} using FAPS version {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S"), fp.__version__))
     log_file.write('Parameters to initiate the chain:\n')
     pprint(model, log_file)
+    if max_distance is not None:
+        log_file.write('Maximum dispersal distance allowed: {} metres.\n'.format(max_distance))
     log_file.write('\nGaussian noise is applied to these values at each iteration with standard deviations:\n')
     pprint(proposal_sigma, log_file)
     log_file.write("\nPerforming a total of {} steps, thinning every {} iteration. Output will be saved to:\n{}".format(nreps, thin, path + '.out'))
