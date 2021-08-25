@@ -15,11 +15,12 @@ from scipy.stats import gamma
 
 from amajusmating import mcmc
 
+
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 4500 # Total number of iterations to run
+nreps = 3500 # Total number of iterations to run
 thin  = 10 # How often to write samples.
 max_distance = np.inf # set a maximum dispersal distance
 # output_dir = "005.results/003_mcmc_restrict_kurtosis/output/"
@@ -27,7 +28,6 @@ output_dir = os.path.dirname(os.path.abspath(__file__))+'/output/'
 os.makedirs(output_dir, exist_ok=True)
 
 np.random.seed(46)
-seeds = np.random.randint(1e4, size=len(chains))
 
 # PRIORS
 priors = (lambda x : {
@@ -40,20 +40,21 @@ priors = (lambda x : {
 # Proposed values are a Gaussian peturbation away from the previous values.
 # This is controlled by the sigma of the gaussian, which is defined for each variable
 proposal_sigma = {
-    'missing' : 0.025,
+    'missing' : 0.0,
     'shape'  : 0.05,
     'scale'  : 2,
     'mixture' : 0.025,
 }
 
-for i in [1,2,3,4]:
+
+for i in [1,2]:
     mcmc.run_MCMC(
         data= am_data,
         initial_parameters = {
-            'missing' : beta.rvs(a=3, b = 15),
-            'shape'   : gamma.rvs(a=10,  scale = 1/5),
-            'scale'   : gamma.rvs(a=6,  scale = 50),
-            'mixture' : beta.rvs(a=1.1, b = 1.1)
+            'missing' : [ 0.1, 0.2, 0.3, 0.4] [i-1],
+            'shape'   : [   2, 0.5, 0.2,   1] [i-1],
+            'scale'   : [  70,  40, 100,  10] [i-1],
+            'mixture' : [0.99, 0.4, 0.8, 0.6] [i-1]
         },
         proposal_sigma = proposal_sigma,
         priors = priors,

@@ -5,7 +5,7 @@ mcmc <- list(
   read_tsv("005.results/003_mcmc_restrict_kurtosis/output/chain2.out") %>% mutate(chain = "2"),
   read_tsv("005.results/003_mcmc_restrict_kurtosis/output/chain3.out") %>% mutate(chain = "3"),
   read_tsv("005.results/003_mcmc_restrict_kurtosis/output/chain4.out") %>% mutate(chain = "4")
-) %>% 
+) %>%
   do.call(what="rbind")
 
 # This only really converges after 1500 iterations, because starting values for shape and scale are wacky
@@ -20,6 +20,9 @@ mcmc %>%
   geom_line()
 mcmc %>% 
   ggplot(aes(x = iter, y = shape, colour = chain)) +
+  geom_line()
+mcmc %>% 
+  ggplot(aes(x = iter, y = mixture, colour = chain)) +
   geom_line()
 
 mcmc %>% 
@@ -51,7 +54,7 @@ mcmc %>%
 mcmc %>% 
   filter(iter > 1500) %>% 
   ggplot(aes(x=shape)) + 
-  geom_histogram(aes(y=..density..)) + 
+  geom_histogram(aes(y=..density.., colour = chain, fill=chain)) + 
   stat_function(fun=dgamma,
                 color="red",
                 args=list(shape = 10, 
@@ -75,5 +78,5 @@ mcmc %>%
 # Shape and scale are strongly correlated. r = 0.92
 mcmc %>% 
   filter(iter > 1500) %>% 
-  ggplot(aes(x = shape, y = scale)) + 
+  ggplot(aes(x = shape, y = scale, colour = chain)) + 
   geom_point()

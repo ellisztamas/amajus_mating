@@ -1,20 +1,20 @@
-Metropolis-Hasting analysis mating in A. majus begun 2021-06-16 14:39:42 using FAPS version 2.6.5.
+Metropolis-Hasting analysis mating in A. majus begun 2021-08-23 15:47:21 using FAPS 2.6.6 in Python 3.8.10.
 Parameters to initiate the chain:
 {'log_posterior': -10000000000000.0,
  'log_prior': -10000000000000.0,
  'loglik': -10000000000000.0,
- 'missing': 0.07574190558199359,
- 'mixture': 0.7195354968106135,
- 'scale': 269.1853622013122,
- 'shape': 2.5069611994218923}
+ 'missing': 0.1,
+ 'mixture': 0.99,
+ 'scale': 70,
+ 'shape': 2}
 
 Gaussian noise is applied to these values at each iteration with standard deviations:
-{'missing': 0.025, 'mixture': 0.025, 'scale': 2, 'shape': 0.05}
+{'missing': 0.0, 'mixture': 0.025, 'scale': 2, 'shape': 0.05}
 
 Performing a total of 3500 steps, thinning every 10 iteration. Output will be saved to:
 /datadisk/Documents/Antirrhinum/amajus_mating/005.results/003_mcmc_restrict_kurtosis/output/chain1.out
-Analysis begun 2021-06-16 14:39:42.
+Analysis begun 2021-08-23 15:47:21.
 
 MCMC set up. Beginning Markov chain...
 
-MCMC completed 2021-06-16 18:20:25.
+MCMC completed 2021-08-23 18:23:25.

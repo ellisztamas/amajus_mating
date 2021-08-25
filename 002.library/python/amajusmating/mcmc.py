@@ -4,6 +4,7 @@ from pprint import pprint
 import sys
 from time import time, strftime
 from tqdm import tqdm
+import platform
 
 from amajusmating.dispersal import dispersal_GND
 
@@ -80,18 +81,19 @@ def update_parameters(current_model:dict, sigma:dict):
         new_model[k] += dev[k]
     
     # Check things stay within boundaries
-    if new_model['mixture'] > 1.0: new_model['mixture'] = 1.0
-    if new_model['mixture'] <   0: new_model['mixture'] = 0
+    # If not, reflect them back to the other side of zero or one.
+    if new_model['mixture'] > 1.0: new_model['mixture'] = 2 - new_model['mixture']
+    if new_model['mixture'] <   0: new_model['mixture'] =   - new_model['mixture']
 
-    if new_model['missing'] > 1.0: new_model['missing'] = 1.0
-    if new_model['missing'] <   0: new_model['missing'] = 0
+    if new_model['missing'] > 1.0: new_model['missing'] = 2 - new_model['missing']
+    if new_model['missing'] <   0: new_model['missing'] =   - new_model['missing']
 
-    if new_model['shape'] <   0: new_model['shape'] = 0
-    if new_model['scale'] <   0: new_model['scale'] = 0
+    if new_model['shape'] <= 0: new_model['shape'] = - new_model['shape']
+    if new_model['scale'] <= 0: new_model['scale'] = - new_model['scale']
 
     if "assortment" in current_model.keys():
-        if new_model['assortment'] > 1.0: new_model['assortment'] = 1.0
-        if new_model['assortment'] <   0: new_model['assortment'] = 0
+        if new_model['assortment'] > 1.0: new_model['assortment'] = 2 - new_model['assortment'] 
+        if new_model['assortment'] <   0: new_model['assortment'] =   - new_model['assortment'] 
 
     return new_model
 
@@ -141,13 +143,18 @@ def setup_output(path, model, proposal_sigma, nreps, thin, max_distance = None):
     out = 'iter\thours'
     for k in sorted(model.keys()): out = out + '\t' + k
     out = out + '\n'
-    output = open('{}'.format(path) + '.out', 'w')
+    output = open('{}'.format(path) + '.out', 'w')  
     output.write(out)
     output.close()
 
     # Set up log file
     log_file = open(path + ".log", 'w')
-    log_file.write('Metropolis-Hasting analysis mating in A. majus begun {} using FAPS version {}.\n'.format(strftime("%Y-%m-%d %H:%M:%S"), fp.__version__))
+    log_file.write('Metropolis-Hasting analysis mating in A. majus begun {} using FAPS {} in Python {}.\n'.format(
+        strftime("%Y-%m-%d %H:%M:%S"),
+        fp.__version__,
+        platform.python_version()
+        )
+        )
     log_file.write('Parameters to initiate the chain:\n')
     pprint(model, log_file)
     if max_distance is not None:
