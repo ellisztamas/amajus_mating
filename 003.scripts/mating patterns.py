@@ -95,7 +95,7 @@ mating_probs = pd.DataFrame({
 m = mating_probs / mating_probs.sum(1)[:, np.newaxis]
 m[0] / m[1]
 
-np.quantile(data.sires["Easting"], q=[0, 0.2, 0.4, 0.6, 0.8, 1])
+#np.quantile(data.gps["Easting"], q=[0, 0.2, 0.4, 0.6, 0.8, 1])
 
 
 data.sires.groupby(by= "rosea_father").median()['distance']
