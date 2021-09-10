@@ -132,7 +132,7 @@ x <- seq(1, 3000, 0.1)
 n_draws_per_sim <- 10000
 nsims <- 1000
 
-par(mfrow=c(1,2))
+par(mfrow=c(1,3))
 # Allowing lots of dispersal <500m, skeptical beyond that
 shape <- rgamma(shape=10, scale = 1/6, n = nsims)
 scale <- rgamma(shape=6, scale = 50, n = nsims)
@@ -163,6 +163,7 @@ scale <- rgamma(shape=2, scale = 3, n = nsims)
 shape <- rgamma(shape=2, scale = 1/2, n = nsims)
 sim <- prior_sim(x, scale, shape, n = n_draws_per_sim)
 hist(shape, main="Prior draws for shape")
+hist(scale, main="Prior draws for scale")
 hist(sim$draws, main="Prior simulated data")
 colMeans(sim$summary)
 
