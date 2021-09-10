@@ -1,0 +1,54 @@
+# Mating patterns in Antirrhinum majus
+
+## 0.2.0 Mating with out covariates
+
+25th August 2021
+
+An analysis of sibships and paternity without including information about 
+dispersal to get a first impression of the dataset (I should have done this a 
+long time ago). I am using the 'full integration' version of the transition
+probabilty function, which has recently been validated with data from American
+chestnut, and I am a bit more confident about the data.
+
+How many mating events?
+How big are the families?
+How many missing fathers?
+
+Added folder `005.results/003_no_covariates`.
+Changed the names of other results folders to fit that in.
+
+## 0.1.0 Paternity by full integration
+19.08.2021, on branch 'full-integration'
+
+I have adapted the MCMC procedure to use `integration='full'`.
+This ought to be a better implementation of the function to calculate transition
+probabilties, but I previously couldn't get MCMC to work. I think that was 
+because the proportion of missing fathers was allowed to vary, but there is a
+high likelihood solution where everybody's father is missing, and the algorithm 
+coverged on that. Even strong priors were not enough to stop it.
+To address this I now use fixed values for missing fathers, but use a different
+value for each MCMC chain (0.1, 0.2, 0.3, and 0.4).
+
+I was also previously starting my chains from random draws from the prior for 
+each parameter. This took ages to converge, but I still didn't want to change 
+the priors. Instead, initial conditions are now defined with a list of manually
+defined values, which are parsed with a loop. I can reuse this for other results
+using different priors without having to create a ton of scripts and risk
+copy-paste errors.
+
+During convergence I found that shape and scale parameters sometimes wander
+below zero or above one. I had to update `mcmc.update_parameters` so that when
+this happens, values are reflected back on themselved. For example:
+
+1. if a value of -0.01 is proposed, this becomes 0.01. 
+2. If a value of 1.01 is proposed for something bounded by 1, this becomes
+    2-1.01 = 0.99.
+
+Chain mixing is a bit weird - it seems that having fixed values for missing dads
+that are different between chains makes it hard to compare chains. It may be
+I need to use one value, and repeat the whole excercise later with higher and 
+lower values
+
+Also updated MCMC log files to also print the version of Python being used.
+
+Updated the library package to 0.3.1.
