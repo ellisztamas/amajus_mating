@@ -1,5 +1,45 @@
 # Mating patterns in Antirrhinum majus
 
+## 0.3.0 Summarise mating patterns
+
+10th September 2021
+
+For a single set of parameters, summarise what information we would like to know
+about mating patterns by calling summarise_sires()
+
+- Import a set of MCMC chains, concatenate, and reduce to 1000 rows.
+- For a single row in that matrix: 
+    - Update paternity probabilities with values from the step in the MCMC
+    - Draw two posterior samples of mating events using:
+        1. genetic and dispersal information
+        2. Dispersal information only
+    - Call summarise_sires() on both datasets, and join those to data on flower
+        colour and distances between parents.
+    - Create a function `mating.fathers()` to summarise conclusions about the
+        output (for the table including genetic information):
+            - Weighted-median dispersal distance
+            - How many more than 500 or 1000m?
+            - How many mating patterns:
+                1. How many in total (sum of 'prob' column)
+                2. How many have >95% support
+            - How many missing fathers?
+            - How many offspring have an unsampled father?
+    - Create a function `mating.fitness()` to compare mating patterns between
+        the two posterior samples:
+            - Relative fitness of genotypes also across space?
+            - Assortment?
+- Repeat `mating.fathers()` and `mating.fitness()` for every row in the MCMC
+    chain.
+- Create a single table in the format of `summarise_sires` which is an *average*
+    over the MCMC output.
+        - Create a blank DataFrame with headers that match `summarise_sires`.
+        - For each MCMC step, do an inner join on the `mother` and `father` 
+            columns.
+        - Sum the two resulting `prob` columns.
+        - Select only the columns in the original format.
+        - Repeat for all MCMC steps.
+        - Use this to generate a single dispersal kernel.
+
 ## 0.2.0 Mating with out covariates
 
 25th August 2021
