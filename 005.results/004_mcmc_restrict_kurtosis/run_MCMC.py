@@ -20,14 +20,14 @@ from amajusmating import mcmc
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
 # INITIALISE THE MODEL
-nreps = 3500 # Total number of iterations to run
+nreps = 4000 # Total number of iterations to run
 thin  = 10 # How often to write samples.
 max_distance = np.inf # set a maximum dispersal distance
-# output_dir = "005.results/003_mcmc_restrict_kurtosis/output/"
+# output_dir = "005.results/004_mcmc_restrict_kurtosis/output/"
 output_dir = os.path.dirname(os.path.abspath(__file__))+'/output/'
 os.makedirs(output_dir, exist_ok=True)
 
-np.random.seed(46)
+np.random.seed(87)
 
 # PRIORS
 priors = (lambda x : {
@@ -47,11 +47,11 @@ proposal_sigma = {
 }
 
 
-for i in [1,2]:
+for i in [1,2,3,4]:
     mcmc.run_MCMC(
         data= am_data,
         initial_parameters = {
-            'missing' : [ 0.1, 0.2, 0.3, 0.4] [i-1],
+            'missing' : [0.32,0.32,0.32,0.32] [i-1],
             'shape'   : [   2, 0.5, 0.2,   1] [i-1],
             'scale'   : [  70,  40, 100,  10] [i-1],
             'mixture' : [0.99, 0.4, 0.8, 0.6] [i-1]
