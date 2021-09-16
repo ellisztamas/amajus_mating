@@ -5,33 +5,34 @@
 10th September 2021
 
 For a single set of parameters, summarise what information we would like to know
-about mating patterns by calling summarise_sires()
+about mating patterns. This is currently in `003.scripts/mating_patterns`.
 
 - Import a set of MCMC chains, concatenate, and reduce to 1000 rows.
 - For a single row in that matrix: 
     - Update paternity probabilities with values from the step in the MCMC
-    - Draw two posterior samples of mating events using:
-        1. genetic and dispersal information
-        2. Dispersal information only
-<<<<<<< HEAD
+    - Added function `mating.simulate_mating` to draw two posterior samples of mating
+        events using:
+            1. genetic and dispersal information
+            2. Dispersal information only
     - Join those to data on flower colour and distances between parents.
-=======
-    - Call summarise_sires() on both datasets, and join those to data on flower
-        colour and distances between parents.
->>>>>>> 1432c21ec3ba2b24d02bc8968845e4c4082a4d78
-    - Create a function `mating.fathers()` to summarise conclusions about the
-        output (for the table including genetic information):
-            - Weighted-median dispersal distance
-            - How many more than 500 or 1000m?
-            - How many mating patterns:
-                1. How many in total (sum of 'prob' column)
-                2. How many have >95% support
-            - How many missing fathers?
-            - How many offspring have an unsampled father?
-    - Create a function `mating.fitness()` to compare mating patterns between
-        the two posterior samples:
-            - Relative fitness of genotypes also across space?
-            - Assortment?
+    - Summarise conclusions about the output (for the table including genetic information):
+            - Number of mating events (where the father was not unsampled)
+            - Number of mating events (where the father was unsampled)
+            - Number of offspring whose father was unsampled (averaged over partitions,
+                so not an integer)
+            - Number of half-sib arrays where not fathers were identified at all
+            - Median dispersal distance
+            - How many fathers were more than 100m away?
+            - How many fathers were more than 500m away?
+            - How many fathers were more than 1000m away?
+    - Compare mating patterns between
+        the two posterior samples in 5 spatial bins:
+            - Relative fitness of phenotypes (FR, hybrid, Ye)
+            - Relative fitness of Rosea genotypes
+            - Relative fitness of Sulfurea genotypes 
+
+Still to do:
+- Put the mating summaries above into functions `mating.fathers()` and `mating.fitness()`
 - Repeat `mating.fathers()` and `mating.fitness()` for every row in the MCMC
     chain.
 - Create a single table in the format of `summarise_sires` which is an *average*
@@ -43,6 +44,7 @@ about mating patterns by calling summarise_sires()
         - Select only the columns in the original format.
         - Repeat for all MCMC steps.
         - Use this to generate a single dispersal kernel.
+- Turn all this into a reusable script.
 
 ## 0.2.0 Mating with out covariates
 
