@@ -59,7 +59,7 @@ else:
     mothers = adults.subset(individuals=progeny.mothers)
     # Create the paternity array and save for later.
     patlik = fp.paternity_array(
-        progeny, mothers, adults, mu = mu, missing_parents= 0.2, integration='partial'
+        progeny, mothers, adults, mu = mu, missing_parents= 0.32
         )
     patlik.write("004.output/paternity_array.csv")
 
@@ -97,5 +97,3 @@ am_data = faps_data(
 
 # Remove variables we don't need anymore.
 del(progeny, md, r, h, ros_sulf, patlik, lx, adults, mothers)
-
-
