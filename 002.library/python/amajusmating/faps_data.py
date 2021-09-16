@@ -158,7 +158,7 @@ class faps_data(object):
         if model['shape'] <= 0:
             raise ValueError("'shape' parameter should be positive.")
         if model['scale'] <= 0:
-            raise ValueError("'scale' parameter should be positive.")
+            raise ValueError("'scale' parameter should be positive, but is {}".model['scale'])
         if "assortment" in model.keys():
             if model['assortment'] > 1.0 or model['assortment'] < 0:
                 raise ValueError('"assortment" parameter should be between 0 and 1.')

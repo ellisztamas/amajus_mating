@@ -13,7 +13,12 @@ about mating patterns by calling summarise_sires()
     - Draw two posterior samples of mating events using:
         1. genetic and dispersal information
         2. Dispersal information only
+<<<<<<< HEAD
     - Join those to data on flower colour and distances between parents.
+=======
+    - Call summarise_sires() on both datasets, and join those to data on flower
+        colour and distances between parents.
+>>>>>>> 1432c21ec3ba2b24d02bc8968845e4c4082a4d78
     - Create a function `mating.fathers()` to summarise conclusions about the
         output (for the table including genetic information):
             - Weighted-median dispersal distance
