@@ -13,7 +13,8 @@ import os
 from scipy.stats import beta
 from scipy.stats import gamma
 
-from amajusmating import mcmc, mating
+from amajusmating import mcmc
+from amajusmating import mating
 
 
 # FAPS objects and distance matrices are generated in a separate script.

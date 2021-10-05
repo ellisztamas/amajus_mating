@@ -365,8 +365,8 @@ def mating_over_chains(data, folder, boundaries, burnin = 500, ndraws = 1000):
     assortment = {}
 
     # Loop over steps in the MCMC chain and get siring events for each.
-    # for i in tqdm(mcmc.index):
-    for i in range(20):
+    for i in tqdm(mcmc.index):
+        
         model = mcmc.loc[i]
         # Simulate mating events, and include GPS and phentoype information about mother and sire
         data.mating = simulate_mating(data, model, ndraws=ndraws)

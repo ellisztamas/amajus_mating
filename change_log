@@ -1,5 +1,31 @@
 # Mating patterns in Antirrhinum majus
 
+## 0.4.0 Posterior mating functions
+
+1st October 2021
+
+Added function to calculate relative fitness of flower-colour genotypes and
+assortative mating for flower colour for each row of MCMC output.
+
+Added functions to amajusmating.mating:
+- `import_mcmc` imports a folder full of MCMC chains and concatenates them.
+- `simulate_mating` runs faps.posterior_mating to generate 'observed' datasets
+    based on genetic and spatial information, and 'expected' datasets based on
+    spatial information only.
+- `summarise_families` returns basic information anbout how many sampled and
+    missing dads
+- `relative_fitness` calculates relative fitness of a set of genotype in the
+    whole population, and in spatial bins
+- `assortative_mating` calculates the frequency of mating between identical
+    genotypes for the whole population, and in spatial bins
+- `mating_over_chains` runs the functions above over each row of the MCMC
+
+Added commands to `run_MCMC` scripts to call mating_over_chains on MCMC results
+so far.
+
+Also rearranged results folders to match what is currently on github.
+
+
 ## 0.3.0 Summarise mating patterns
 
 10th September 2021

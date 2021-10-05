@@ -35,12 +35,6 @@ ndraws = 1000
 burnin = 500
 spatial_bins = [-827, -70, 70, 244, 270, 560]
 
-
-# Parameters for posterior simulations of mating
-ndraws = 1000
-burnin = 500
-spatial_bins = [-827, -70, 70, 244, 270, 560]
-
 # PRIORS
 priors = (lambda x : {
     'missing' : beta.pdf(x['missing'], a=3,   b=15),
@@ -58,23 +52,23 @@ proposal_sigma = {
     'mixture' : 0.025,
 }
 
-for i in [1,2,3,4]:
-    mcmc.run_MCMC(
-        data= am_data,
-        initial_parameters = {
-            'missing' : [0.32,0.32,0.32,0.32] [i-1],
-            'shape'   : [   2, 0.5, 0.2,   1] [i-1],
-            'scale'   : [  70,  40, 100,  10] [i-1],
-            'mixture' : [0.99, 0.4, 0.8, 0.6] [i-1]
-        },
-        proposal_sigma = proposal_sigma,
-        priors = priors,
-        thin=thin,
-        nreps=nreps,
-        output_dir = output_dir,
-        chain_name = 'chain' + str(i),
-        max_distance = max_distance
-        )
+# for i in [1,2,3,4]:
+#     mcmc.run_MCMC(
+#         data= am_data,
+#         initial_parameters = {
+#             'missing' : [0.32,0.32,0.32,0.32] [i-1],
+#             'shape'   : [   2, 0.5, 0.2,   1] [i-1],
+#             'scale'   : [  70,  40, 100,  10] [i-1],
+#             'mixture' : [0.99, 0.4, 0.8, 0.6] [i-1]
+#         },
+#         proposal_sigma = proposal_sigma,
+#         priors = priors,
+#         thin=thin,
+#         nreps=nreps,
+#         output_dir = output_dir,
+#         chain_name = 'chain' + str(i),
+#         max_distance = max_distance
+#         )
 
 
 print("\nBeginning posterior simulations of mating patterns using {} draws per iteration, and discarding the first {} itertaions as burn-in.\n\n".format(ndraws, burnin))
