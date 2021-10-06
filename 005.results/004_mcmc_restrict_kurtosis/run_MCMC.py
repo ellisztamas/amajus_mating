@@ -15,7 +15,6 @@ from scipy.stats import gamma
 
 from amajusmating import mcmc
 
-
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
@@ -46,6 +45,7 @@ proposal_sigma = {
     'mixture' : 0.025,
 }
 
+print("\nBeginning MCMC.\n\n")
 
 for i in [1,2,3,4]:
     mcmc.run_MCMC(

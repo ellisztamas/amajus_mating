@@ -1,11 +1,11 @@
 library("tidyverse")
 
 mcmc <- list(
-  read_tsv("005.results/004_mcmc_restrict_kurtosis/output/chain1.out") %>% mutate(chain = "1"),
-  read_tsv("005.results/004_mcmc_restrict_kurtosis/output/chain2.out") %>% mutate(chain = "2"),
-  read_tsv("005.results/004_mcmc_restrict_kurtosis/output/chain3.out") %>% mutate(chain = "3"),
-  read_tsv("005.results/004_mcmc_restrict_kurtosis/output/chain4.out") %>% mutate(chain = "4")
-) %>%
+  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain1.out") %>% mutate(chain = "1"),
+  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain2.out") %>% mutate(chain = "2"),
+  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain3.out") %>% mutate(chain = "3"),
+  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain4.out") %>% mutate(chain = "4")
+) %>% 
   do.call(what="rbind")
 
 # This only really converges after 1500 iterations, because starting values for shape and scale are wacky
@@ -21,19 +21,17 @@ mcmc %>%
 mcmc %>% 
   ggplot(aes(x = iter, y = shape, colour = chain)) +
   geom_line()
-mcmc %>% 
-  ggplot(aes(x = iter, y = mixture, colour = chain)) +
-  geom_line()
 
 mcmc %>% 
   filter(iter > 1500) %>% 
   ggplot(aes(x=missing)) + 
   geom_histogram(aes(y=..density..)) + 
-  stat_function(fun=dbeta,
-                color="red",
-                args=list(shape1 = 3, 
-                          shape2 = 15)
-                ) +
+  stat_function(
+    fun=dbeta,
+    color="red",
+    args=list(shape1 = 3, 
+              shape2 = 15)
+  ) +
   lims(
     x = c(0,0.6)
   )
@@ -54,7 +52,7 @@ mcmc %>%
 mcmc %>% 
   filter(iter > 1500) %>% 
   ggplot(aes(x=shape)) + 
-  geom_histogram(aes(y=..density.., colour = chain, fill=chain)) + 
+  geom_histogram(aes(y=..density..)) + 
   stat_function(fun=dgamma,
                 color="red",
                 args=list(shape = 10, 
@@ -72,11 +70,12 @@ mcmc %>%
 
 # No correlation between missing and mixture.
 mcmc %>% 
-  filter(iter > 1500) %>% 
-  ggplot(aes(x = missing, y = mixture)) + 
+  filter(iter > 500) %>% 
+  ggplot(aes(x = shape, y = mixture)) + 
   geom_point()
 # Shape and scale are strongly correlated. r = 0.92
 mcmc %>% 
-  filter(iter > 1500) %>% 
-  ggplot(aes(x = shape, y = scale, colour = chain)) + 
+  filter(iter > 500) %>% 
+  ggplot(aes(x = shape, y = scale)) + 
   geom_point()
+

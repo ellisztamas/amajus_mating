@@ -67,15 +67,3 @@ mcmc %>%
                 args=list(shape = 6, 
                           scale = 50)
   )
-
-# No correlation between missing and mixture.
-mcmc %>% 
-  filter(iter > 500) %>% 
-  ggplot(aes(x = shape, y = mixture)) + 
-  geom_point()
-# Shape and scale are strongly correlated. r = 0.92
-mcmc %>% 
-  filter(iter > 500) %>% 
-  ggplot(aes(x = shape, y = scale)) + 
-  geom_point()
-

@@ -97,5 +97,3 @@ am_data = faps_data(
 
 # Remove variables we don't need anymore.
 del(progeny, md, r, h, ros_sulf, patlik, lx, adults, mothers)
-
-
