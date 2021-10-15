@@ -1,0 +1,71 @@
+---
+title: "Dispersal distances without modelling dispersal"
+author: "Tom Ellis"
+date: "10/15/2021"
+output: html_document
+---
+
+Notebook to check the shape of the dispersal kernel when you don't include information about dispersal estimated from MCMC.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(reticulate)
+library(tidyverse)
+library(ggplot2)
+library(StatCompLab)
+
+library(spatstat)
+
+```
+
+```{python import-data}
+import numpy as np
+import os
+
+import faps as fp
+
+# FAPS objects and distance matrices are generated in a separate script.
+exec(open('003.scripts/setup_FAPS_GPS.py').read())
+```
+
+```{python mating-events}
+# Get mating events
+am_data.update_missing_dads(0.1)
+sc = fp.sibship_clustering(am_data.paternity)
+me = fp.summarise_sires(sc)
+
+# add distances between mother and father
+distance_df = pd.DataFrame({
+    'mother'   : np.repeat(list(am_data.mothers), am_data.n_candidates),
+    'father'   : np.tile(am_data.candidates, len(am_data.mothers)),
+    'distance' : am_data.distances.flatten()
+})
+
+me = me.merge(
+    distance_df, how = "left", on = ['mother', 'father']
+)
+```
+
+```{r}
+# Histogram of dispersal distances
+py$me %>% 
+  ggplot(aes(x = distance, weight = prob)) + 
+  geom_histogram()
+
+# weighted median dispersal
+weighted.median(py$me$distance, w = py$me$prob)
+
+```
+
+```{r}
+
+py$me %>% 
+  ggplot(aes(x = distance,, weights = prob)) + 
+  stat_ewcdf(geom = "step", pad = FALSE) + 
+  scale_x_log10() +
+  labs(
+    y = "Cumulative proportion"
+  ) +
+  annotation_logticks(sides = "b")
+```
+

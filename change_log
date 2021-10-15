@@ -1,5 +1,33 @@
 # Mating patterns in Antirrhinum majus
 
+## 0.5.0 Relative fitness binning males
+
+15th October 2021
+
+Compare dispersal kernel for the case where you don't do the joint model.
+
+Take what you did for mating so far and make it its own result.
+Move mating.py to that result folder and add a summary
+
+Remove the posterior simulations and replace with calls to sires, and a
+comparison with the whole population for expected draws.
+Update summary stats in `summarise_mating.py` to reflect this
+
+Add a log file
+
+Group fathers instead of mothers into spatial bins.
+Make sure the spatial bins are the same width.
+
+This will still underestimate the error bars, because I need to find a way to 
+incoroporate uncertain due to sample size.
+
+Repeat MCMC with different values for missing dads
+
+## 0.4.1 Dispersal with no covariates
+
+Plotted the dispersal kernel using only the genetic information (no covariates
+about distance).
+
 ## 0.4.0 Posterior mating functions
 
 1st October 2021
