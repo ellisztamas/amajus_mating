@@ -1,10 +1,10 @@
 library("tidyverse")
 
 mcmc <- list(
-  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain1.out") %>% mutate(chain = "1"),
-  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain2.out") %>% mutate(chain = "2"),
-  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain3.out") %>% mutate(chain = "3"),
-  read_tsv("005.results/005_mcmc_short_range_kurtosis/output/chain4.out") %>% mutate(chain = "4")
+  read_tsv("005.results/006_mcmc_strong_prior_on_kurtosis/output/chain1.out") %>% mutate(chain = "1"),
+  read_tsv("005.results/006_mcmc_strong_prior_on_kurtosis/output/chain2.out") %>% mutate(chain = "2"),
+  read_tsv("005.results/006_mcmc_strong_prior_on_kurtosis/output/chain3.out") %>% mutate(chain = "3"),
+  read_tsv("005.results/006_mcmc_strong_prior_on_kurtosis/output/chain4.out") %>% mutate(chain = "4")
 ) %>% 
   do.call(what="rbind")
 
@@ -67,3 +67,15 @@ mcmc %>%
                 args=list(shape = 6, 
                           scale = 50)
   )
+
+# No correlation between missing and mixture.
+mcmc %>% 
+  filter(iter > 500) %>% 
+  ggplot(aes(x = shape, y = mixture)) + 
+  geom_point()
+# Shape and scale are strongly correlated. r = 0.92
+mcmc %>% 
+  filter(iter > 500) %>% 
+  ggplot(aes(x = shape, y = scale)) + 
+  geom_point()
+

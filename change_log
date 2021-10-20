@@ -72,6 +72,12 @@ Still to do:
         - Use this to generate a single dispersal kernel.
 - Turn all this into a reusable script.
 
+## 0.2.1 Updated addition MCMC runs with full integration
+
+I previously altered the MCMC procedure to use full integration, but with
+full integration at the paternity_array step. I applied this to the results
+folders for other prior settings.
+
 ## 0.2.0 Mating with out covariates
 
 25th August 2021
