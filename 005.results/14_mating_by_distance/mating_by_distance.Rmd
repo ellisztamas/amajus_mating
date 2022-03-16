@@ -36,47 +36,90 @@ burnin = 500
 
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
+# Make the matrix of distances into a dataframe
+am_data.distance_df = pd.DataFrame({
+    'mother'   : np.repeat(list(am_data.mothers), am_data.n_candidates),
+    'father'   : np.tile(am_data.candidates, len(am_data.mothers)),
+    'distance' : am_data.distances.flatten()
+})
 
-folder = "005.results/00*_mcmc_restrict_kurtosis/output/"
+sires = pd.read_csv(
+  "005.results/011_fitness_all_genotypes/004_mcmc_restrict_kurtosis/sires.csv"
+  )
+sires.rename( columns={'Unnamed: 0':'iter', 'Unnamed: 1':'mating_event'}, inplace=True ) # rename index columns
 
-data = am_data
-max_distance = np.inf
+# Merge with flower colour data
+sires = sires.merge(am_data.flower_colours, how = 'left', left_on = "father", right_index = True)
+# Merge with distances
+sires = sires.merge(am_data.distance_df, how = 'left', on = ["mother", "father"])
+# Remove candidates with no distance info
+sires = sires.loc[~sires['distance'].isnull()].reset_index()
 
-# Import MCMC chains
-chains = glob(folder+"/*out")
-posterior = {}
-for chain in chains:
-    k = os.path.basename(chain)
-    posterior[k] = pd.read_csv(chain, sep="\t").loc[lambda x: x.iter >= burnin]
-posterior = pd.concat(posterior).reset_index()
-# For this script we are only interested in the generalised-Gaussian part
-# of the dispersal kernel, so set `mixture` to 1 for all rows.
-posterior['mixture'] = 1
+sires
 
-# Loop over steps in the MCMC chain and get siring events for each.
-# for i in tqdm(posterior.index):
-i = 4
-model = posterior.loc[i]
+weight distances by number of mating events
 
-data.mating = mating.simulate_mating(am_data, model, ndraws=100)
-
+count_mating_events <- function(distance_df, prob, phenotype){
+  df showing:
+    colour
+    n mating events
+}
 
 
-# Remove cases where the colour of the father is unkonwn
-obs = data.mating['obs'].\
-query('simple_colour_father in ["FR", "hybrid", "Ye"]').reset_index()
-exp = data.mating['exp'].\
-query('simple_colour_father in ["FR", "hybrid", "Ye"]')
-    
-# Add data on distance between mother and father and flower colours.
-# Turn distance matrix into a data frame so we can use .loc on it.
-distance_df = pd.DataFrame({
-    'mother'   : np.repeat(list(data.mothers), data.n_candidates),
-    'father'   : np.tile(data.candidates, len(data.mothers)),
-    'distance' : data.distances.flatten()
-}).\
-merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
-merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
+for i in demes:
+  count_mating_events on obs data, wieghted by posterior probability
+  sum of values = N total mating events from this deme
+  
+  count_mating_events on exp data, weighted by n mating events per mother
+  vector of probabilities = output/sum
+  multinomial draws of size N from that vector to get a null distribution
+  
+  df showing :
+    colour
+    obs vs exp
+    cumsum for observed numbers
+    cumsum for simulated draws
+
+# folder = "005.results/00*_mcmc_restrict_kurtosis/output/"
+
+# data = am_data
+# max_distance = np.inf
+# 
+# # Import MCMC chains
+# chains = glob(folder+"/*out")
+# posterior = {}
+# for chain in chains:
+#     k = os.path.basename(chain)
+#     posterior[k] = pd.read_csv(chain, sep="\t").loc[lambda x: x.iter >= burnin]
+# posterior = pd.concat(posterior).reset_index()
+# # For this script we are only interested in the generalised-Gaussian part
+# # of the dispersal kernel, so set `mixture` to 1 for all rows.
+# posterior['mixture'] = 1
+# 
+# # Loop over steps in the MCMC chain and get siring events for each.
+# # for i in tqdm(posterior.index):
+# i = 4
+# model = posterior.loc[i]
+# 
+# data.mating = mating.simulate_mating(am_data, model, ndraws=100)
+# 
+# 
+# 
+# # Remove cases where the colour of the father is unkonwn
+# obs = data.mating['obs'].\
+# query('simple_colour_father in ["FR", "hybrid", "Ye"]').reset_index()
+# exp = data.mating['exp'].\
+# query('simple_colour_father in ["FR", "hybrid", "Ye"]')
+#     
+# # Add data on distance between mother and father and flower colours.
+# # Turn distance matrix into a data frame so we can use .loc on it.
+# distance_df = pd.DataFrame({
+#     'mother'   : np.repeat(list(data.mothers), data.n_candidates),
+#     'father'   : np.tile(data.candidates, len(data.mothers)),
+#     'distance' : data.distances.flatten()
+# }).\
+# merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
+# merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
 ```
 
 ```{r}
