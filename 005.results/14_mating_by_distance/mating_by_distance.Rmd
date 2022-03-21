@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(reticulate)
 library(tidyverse)
+
+source("002.library/R/mating_events.R")
 ```
 
 ## R Markdown
@@ -42,6 +44,10 @@ am_data.distance_df = pd.DataFrame({
     'father'   : np.tile(am_data.candidates, len(am_data.mothers)),
     'distance' : am_data.distances.flatten()
 })
+# Merge with flower colours
+am_data.distance_df = am_data.distance_df.\
+merge(am_data.flower_colours, how = 'left', left_on = "father", right_index = True)
+
 
 sires = pd.read_csv(
   "005.results/011_fitness_all_genotypes/004_mcmc_restrict_kurtosis/sires.csv"
@@ -49,78 +55,191 @@ sires = pd.read_csv(
 sires.rename( columns={'Unnamed: 0':'iter', 'Unnamed: 1':'mating_event'}, inplace=True ) # rename index columns
 
 # Merge with flower colour data
-sires = sires.merge(am_data.flower_colours, how = 'left', left_on = "father", right_index = True)
+# sires = sires.merge(am_data.flower_colours, how = 'left', left_on = "father", right_index = True)
 # Merge with distances
 sires = sires.merge(am_data.distance_df, how = 'left', on = ["mother", "father"])
 # Remove candidates with no distance info
 sires = sires.loc[~sires['distance'].isnull()].reset_index()
 
-sires
-
-weight distances by number of mating events
-
-count_mating_events <- function(distance_df, prob, phenotype){
-  df showing:
-    colour
-    n mating events
-}
-
-
-for i in demes:
-  count_mating_events on obs data, wieghted by posterior probability
-  sum of values = N total mating events from this deme
-  
-  count_mating_events on exp data, weighted by n mating events per mother
-  vector of probabilities = output/sum
-  multinomial draws of size N from that vector to get a null distribution
-  
-  df showing :
-    colour
-    obs vs exp
-    cumsum for observed numbers
-    cumsum for simulated draws
-
-# folder = "005.results/00*_mcmc_restrict_kurtosis/output/"
-
-# data = am_data
-# max_distance = np.inf
-# 
-# # Import MCMC chains
-# chains = glob(folder+"/*out")
-# posterior = {}
-# for chain in chains:
-#     k = os.path.basename(chain)
-#     posterior[k] = pd.read_csv(chain, sep="\t").loc[lambda x: x.iter >= burnin]
-# posterior = pd.concat(posterior).reset_index()
-# # For this script we are only interested in the generalised-Gaussian part
-# # of the dispersal kernel, so set `mixture` to 1 for all rows.
-# posterior['mixture'] = 1
-# 
-# # Loop over steps in the MCMC chain and get siring events for each.
-# # for i in tqdm(posterior.index):
-# i = 4
-# model = posterior.loc[i]
-# 
-# data.mating = mating.simulate_mating(am_data, model, ndraws=100)
-# 
-# 
-# 
-# # Remove cases where the colour of the father is unkonwn
-# obs = data.mating['obs'].\
-# query('simple_colour_father in ["FR", "hybrid", "Ye"]').reset_index()
-# exp = data.mating['exp'].\
-# query('simple_colour_father in ["FR", "hybrid", "Ye"]')
-#     
-# # Add data on distance between mother and father and flower colours.
-# # Turn distance matrix into a data frame so we can use .loc on it.
-# distance_df = pd.DataFrame({
-#     'mother'   : np.repeat(list(data.mothers), data.n_candidates),
-#     'father'   : np.tile(data.candidates, len(data.mothers)),
-#     'distance' : data.distances.flatten()
-# }).\
-# merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
-# merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
 ```
+
+```{r}
+this_colour <- py$am_data$flower_colours %>% 
+  filter(simple_colour != "unkown") %>%
+  row.names()
+
+sires  <- as.data.frame(py$sires)
+sires <- sires %>%
+  filter(
+    # simple_colour %in% c("FR", "hybrid", "Ye"),
+    mother %in% this_colour
+    ) %>% 
+  mutate(
+    simple_colour = as.factor(simple_colour),
+    # Reticulate does something funny to `rosea` and `sulfurea`, so they need to be converted back to vectors
+    rosea = as.factor(unlist(sires$rosea)),
+    sulfurea = as.factor(unlist(sires$sulfurea))
+  )
+
+distance_df <- py$am_data$distance_df
+distance_df <- distance_df %>% 
+  mutate(
+    # Reticulate does something funny to `rosea` and `sulfurea`, so they need to be converted back to vectors
+    rosea = as.factor(unlist(distance_df$rosea)),
+    sulfurea = as.factor(unlist(distance_df$sulfurea))
+  ) %>%   
+  filter(
+    !is.na(distance),
+    distance <= 2000,
+    mother != father,
+    mother %in% this_colour
+  )
+
+# bins <- seq(0,2000,50)
+bins <-c(0, 2.3, 5.8,9.5, 17.5, 30, 51, 90, 154, 303, 2000)
+sires$bins <- cut(sires$distance, bins)
+distance_df$bins <- cut(distance_df$distance, bins)
+
+
+# x <- 
+sires %>%
+  filter (iter == 500) %>%
+  arrange(distance) %>%
+  mutate(
+    cumsum = cumsum(prob),
+    cumsum = cumsum / max(cumsum)) %>%
+  filter(cumsum > 0.5) %>% 
+  arrange(cumsum) %>% head
+pull(cumsum) %>%
+  quantile(seq(0,1, 0.1))
+
+sires %>%
+  # filter (iter == 500) %>%
+  arrange(distance) %>%
+  mutate(cumsum = cumsum(prob) ) %>%
+  filter(cumsum < x[6]) %>%
+  tail() %>%
+  select(distance)
+
+
+sires %>% 
+  group_by(iter) %>% 
+  summarise(
+    i = seq(0.1, 1, 0.1),
+    q = quantile(distance, seq(0.1, 1, 0.1))
+  ) %>% 
+  group_by(i) %>% 
+  summarise(
+    d = mean(q)
+  )
+
+
+```
+
+
+```{r}
+
+iter <- unique(sires$iter)
+
+mating_events <- vector('list', length(iter))
+
+# Initializes the progress bar
+pb <- txtProgressBar(min = 0, max = max(iter), style = 3) 
+for(i in iter){
+  setTxtProgressBar(pb, i)
+  
+  these_sires <- sires %>%
+    filter(iter == i)
+  
+  # Add a weight to the data frame of distances to all males reflecting how many
+  # mating events came from each mother.
+  w <- these_sires %>% 
+    group_by(mother) %>% 
+    summarise(
+      prob = sum(prob)
+    ) %>% 
+    mutate(
+      prob = prob / max(prob)
+    ) 
+  these_non_sires <- distance_df %>% 
+    left_join(w, by = 'mother')
+  
+  these_sires$two_locus <- paste(these_sires$rosea, these_sires$sulfurea, sep = "_")
+  these_non_sires$two_locus <- paste(these_non_sires$rosea, these_non_sires$sulfurea, sep = "_")
+  
+  me <- cumulative_mating_events(
+    these_sires,# %>% filter(mother %in% this_colour),
+    these_non_sires,# %>% filter(mother %in% this_colour),
+    bins = 'bins',
+    phenotype = 'two_locus',
+    weights = 'prob'
+  )
+  me$iter <- i
+  
+  # send the output to mating_events.
+  # The +1 is to account for Python counting from 0, not 1.
+  mating_events[[i + 1]] <- me
+}
+close(pb) # Close the connection
+
+# Glue the list together
+mating_events <- do.call('rbind', mating_events)
+```
+
+```{r}
+library(stringr)
+sapply(str_extract_all(mating_events$bins, "-?[0-9.]+"), function(x) max(as.numeric(x)))
+
+
+mating_events %>% 
+  
+  filter(
+    phenotype != "NaN_NaN"
+  ) %>% 
+  group_by(type, bins, phenotype) %>% 
+  summarise(
+    lower = quantile(cumsum, 0.02),
+    upper = quantile(cumsum, 0.98),
+    .groups = 'drop'
+  ) %>% 
+  pivot_longer(lower:upper) %>% 
+  ggplot( aes(x= bins, y = value, colour = type, group = paste0(name,type)) ) +
+  geom_line() +
+  labs(
+    x = "Distance (m)",
+    y = "Cumulative number of mating events"
+  ) +
+  scale_x_discrete(labels=paste0("<",bins[-1])) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  facet_grid( ~phenotype)
+```
+
+
+```{r}
+
+mating_events %>% 
+  filter(
+    phenotype != "NaN_NaN"
+  ) %>% 
+  group_by(type, bins, phenotype) %>% 
+  summarise(
+    lower = quantile(n_sires, 0.02),
+    upper = quantile(n_sires, 0.98),
+    .groups = 'drop'
+  ) %>% 
+  pivot_longer(lower:upper) %>% 
+  ggplot( aes(x= bins, y = value, colour = type, group = paste0(name,type)) ) +
+  geom_line() +
+  # scale_y_log10() +
+  labs(
+    x = "Distance",
+    y = "Number of mating events"
+  ) +
+  # annotation_logticks(sides = "l") +
+  facet_grid( ~phenotype)
+
+```
+
 
 ```{r}
 py$distance_df %>% 

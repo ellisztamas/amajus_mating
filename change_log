@@ -1,27 +1,62 @@
 # Mating patterns in Antirrhinum majus
 
+repeat MCMC with different values of missing dads
+
+## 0.6.0 Simulations
+
+I want to demonstrate why it is necessary to use the mixture model for dispersal.
+To do this, I will simulate data sets where dispersal is exponential, remove a 
+proportion of fathers at random, and estimate paternity.
+
+
+
 ## 0.5.0 Relative fitness binning males
 
-15th October 2021
+19th October 2021
 
-Compare dispersal kernel for the case where you don't do the joint model.
+I added result 010_mating_bin_fathers to update analysis of mating patterns in
+two main ways. 
 
-Take what you did for mating so far and make it its own result.
-Move mating.py to that result folder and add a summary
+1. The heavy lifting is now done by `faps.summarise_sires()`instead of
+    `faps.posterior_mating`. 
+2. I generate a distribution of 'expected' mating events by considering all
+    possible combinations of mothers and candidates, and the probability of 
+    their having mating given the distance between them, and a dispersal kernel.
+3. I altered simulations to address male fitness somewhat more directly by
+    grouping mating events by the position of the father rather than the mother.
+    This means I can have roughly equal sized spatial bins without having huge
+    variation in sample sizes between bins.
 
-Remove the posterior simulations and replace with calls to sires, and a
-comparison with the whole population for expected draws.
-Update summary stats in `summarise_mating.py` to reflect this
+In addition:
 
-Add a log file
+* `mating.mating_over_chains()` now automatically creates a log file with dates
+    and version.
+* Fitnesses are reported as absolute rather than relative fitnesses. I get that 
+    by summing probabilities of mating events. This will require a bit more
+    manipulation in downstream plotting, but preserves as much information as
+    possible.
 
-Group fathers instead of mothers into spatial bins.
-Make sure the spatial bins are the same width.
+Note that this scheme integrates over uncertainty in the pedigree and dispersal
+parameters, but will underestimate overall uncertainty because I still need to 
+find a way to account for uncertanity due sample sizes (e.g. different spatial
+bins have different number of fathers, which introduces multinomial sampling
+error into fitness estimates).
 
-This will still underestimate the error bars, because I need to find a way to 
-incoroporate uncertain due to sample size.
+## 0.4.2 Move mating by mother to own result
 
-Repeat MCMC with different values for missing dads
+In v0.4.0 I added library code to calculate things about mating based on binning
+mothers in space, and taking finite samples of candidates for the null 
+distribution.
+
+I thought that code would be general, but it seems I will need to change the
+code for different ways of looking at the data. I still want to keep what I have
+done, I created a new results folder for mating patterns this, and moved 
+mating.py straight there.
+
+Commit of result 007_max_distance. I did not commit the output, because this
+needs updating.
+Also committed 008_map.
+Removed 007_paternity_dispersal, because this is deprecated.
 
 ## 0.4.1 Dispersal with no covariates
 

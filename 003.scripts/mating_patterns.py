@@ -3,6 +3,8 @@ import pandas as pd
 from glob import glob
 from tqdm import tqdm
 import os
+import seaborn as sns
+
 
 from faps import posterior_mating
 from amajusmating.dispersal import generalised_normal_PDF
@@ -38,27 +40,27 @@ model = posterior.loc[i]
 data.mating = mating.simulate_mating(am_data, model, ndraws=100)
 
 
-# Add data on distance between mother and father and flower colours.
-# Turn distance matrix into a data frame so we can use .loc on it.
-distance_df = pd.DataFrame({
-    'mother'   : np.repeat(list(data.mothers), data.n_candidates),
-    'father'   : np.tile(data.candidates, len(data.mothers)),
-    'distance' : data.distances.flatten()
-})
+# # Add data on distance between mother and father and flower colours.
+# # Turn distance matrix into a data frame so we can use .loc on it.
+# distance_df = pd.DataFrame({
+#     'mother'   : np.repeat(list(data.mothers), data.n_candidates),
+#     'father'   : np.tile(data.candidates, len(data.mothers)),
+#     'distance' : data.distances.flatten()
+# })
 
 # Merge siring events with distances and phenotypes.
 # Observed mating events
-data.mating['obs'] = data.mating['obs'].\
-    merge(data.gps['Easting'], how='left', left_on='mother', right_index=True) .\
-    merge(distance_df, how="left", on=['mother', 'father']).\
-    merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
-    merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
-# Random mating
-data.mating['exp'] = data.mating['exp'].\
-    merge(data.gps['Easting'], how='left', left_on='mother', right_index=True).\
-    merge(distance_df, how="left", on=['mother', 'father']).\
-    merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
-    merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
+# data.mating['obs'] = data.mating['obs'].\
+#     merge(data.gps['Easting'], how='left', left_on='mother', right_index=True) .\
+#     merge(distance_df, how="left", on=['mother', 'father']).\
+#     merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
+#     merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"]).keys()
+# # Random mating
+# data.mating['exp'] = data.mating['exp'].\
+#     merge(data.gps['Easting'], how='left', left_on='mother', right_index=True).\
+#     merge(distance_df, how="left", on=['mother', 'father']).\
+#     merge(data.flower_colours, how="left", left_on="mother", right_index=True).\
+#     merge(data.flower_colours, how="left", left_on="father", right_index=True, suffixes = ['_mother', "_father"])
 
 # Summarise mating events and dispersal
 {
@@ -79,6 +81,7 @@ data.mating['exp'] = data.mating['exp'].\
 # # 2. n offspring for whom the most likely candidate is 'missing'
 # np.mean(fp.summarise_paternity(data.sibships)['candidate_1'] == "missing")
 
+# Remove cases where the colour of the father is unkonwn
 obs = data.mating['obs'].\
     query('simple_colour_father in ["FR", "hybrid", "Ye"]')
 exp = data.mating['exp'].\
@@ -88,11 +91,19 @@ for geno in ["FR", "hybrid", "Ye"]:
     w_obs = (obs['simple_colour_father'] == geno).mean()
     w_exp = (exp['simple_colour_father'] == geno).mean()
     print(w_obs/w_exp)
-
+# simple assortment
 ass_obs = (obs['simple_colour_father'] == obs['simple_colour_mother']).mean()
 ass_exp = (exp['simple_colour_father'] == exp['simple_colour_mother']).mean()
 ass_obs / ass_exp
 
+obs['match'] = (obs['simple_colour_father'] == obs['simple_colour_mother'])
+obs['bin'] = pd.cut(obs['distance'], np.arange(0,2000,32))
+
+obs.groupby('bin').mean()['match']
+
+import seaborn as sns
+
+# Mating wrt flower colour in spatial bins
 boundaries  = [-np.inf, -70, 70, 244, 270, np.inf]
 
 region_obs = pd.cut(obs['Easting'], bins = boundaries, labels = np.arange(1, len(boundaries)))

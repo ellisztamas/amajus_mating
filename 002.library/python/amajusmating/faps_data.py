@@ -22,7 +22,7 @@ class faps_data(object):
         self.params = {}
 
         # Check the mothers are present in data files.
-        self.mothers = self.paternity.keys()
+        self.mothers = list(self.paternity.keys())
         if any([k not in gps.index for k in self.mothers]):
             ValueError("Not all mothers in the paternity array are present in GPS data.")
         if any([k not in flower_colours.index for k in self.mothers]):
