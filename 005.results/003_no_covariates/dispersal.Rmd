@@ -52,9 +52,6 @@ py$me %>%
   ggplot(aes(x = distance, weight = prob)) + 
   geom_histogram()
 
-# weighted median dispersal
-weighted.median(py$me$distance, w = py$me$prob)
-
 ```
 
 ```{r}
