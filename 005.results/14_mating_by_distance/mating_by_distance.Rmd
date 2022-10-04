@@ -1,5 +1,5 @@
 ---
-title: "Untitled"
+title: "Mating events at increasing distance"
 author: "Tom Ellis"
 date: "3/11/2022"
 output: html_document
@@ -14,27 +14,12 @@ library(tidyverse)
 source("002.library/R/mating_events.R")
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
 ```{python}
+# Python code to import the population data and a table of mating events,
+# and merge distances with flower colour data
+
 import numpy as np
 import pandas as pd
-from glob import glob
-from tqdm import tqdm
-import os
-import seaborn as sns
-
-
-from faps import posterior_mating
-from amajusmating.dispersal import generalised_normal_PDF
-from amajusmating import mating
-
-np.random.seed(121)
-burnin = 500
 
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
@@ -48,7 +33,9 @@ am_data.distance_df = pd.DataFrame({
 am_data.distance_df = am_data.distance_df.\
 merge(am_data.flower_colours, how = 'left', left_on = "father", right_index = True)
 
-
+# Data file containing information about mating events.
+# For each MCMC iteration this gives combinations of mother and father, plus a 
+# posterior inclusion probability that the mating event happened.
 sires = pd.read_csv(
   "005.results/011_fitness_all_genotypes/004_mcmc_restrict_kurtosis/sires.csv"
   )
@@ -63,17 +50,19 @@ sires = sires.loc[~sires['distance'].isnull()].reset_index()
 
 ```
 
-```{r}
+```{r convert-data-from-python}
+# Vector of plant names for which flower colour phentoype is known
 this_colour <- py$am_data$flower_colours %>% 
   filter(simple_colour != "unkown") %>%
   row.names()
 
+# Bring the table of mating events over from the python environment, and tidy it up
 sires  <- as.data.frame(py$sires)
 sires <- sires %>%
   filter(
     # simple_colour %in% c("FR", "hybrid", "Ye"),
-    mother %in% this_colour
-    ) %>% 
+    mother %in% this_colour # subset mothers with known flower colours
+  ) %>% 
   mutate(
     simple_colour = as.factor(simple_colour),
     # Reticulate does something funny to `rosea` and `sulfurea`, so they need to be converted back to vectors
@@ -81,6 +70,7 @@ sires <- sires %>%
     sulfurea = as.factor(unlist(sires$sulfurea))
   )
 
+# Bring the table of distances over from Python, and tidy it up
 distance_df <- py$am_data$distance_df
 distance_df <- distance_df %>% 
   mutate(
@@ -95,56 +85,41 @@ distance_df <- distance_df %>%
     mother %in% this_colour
   )
 
-# bins <- seq(0,2000,50)
-bins <-c(0, 2.3, 5.8,9.5, 17.5, 30, 51, 90, 154, 303, 2000)
+# Add a column diving mating events up into distances classes (demes) based on
+# how far the father is from the mother
+bins <-c(0, 2.3, 5.8, 9.5, 17.5, 30, 51, 90, 154, 303, 2000)
 sires$bins <- cut(sires$distance, bins)
 distance_df$bins <- cut(distance_df$distance, bins)
 
-
-# x <- 
-sires %>%
-  filter (iter == 500) %>%
-  arrange(distance) %>%
-  mutate(
-    cumsum = cumsum(prob),
-    cumsum = cumsum / max(cumsum)) %>%
-  filter(cumsum > 0.5) %>% 
-  arrange(cumsum) %>% head
-pull(cumsum) %>%
-  quantile(seq(0,1, 0.1))
-
-sires %>%
-  # filter (iter == 500) %>%
-  arrange(distance) %>%
-  mutate(cumsum = cumsum(prob) ) %>%
-  filter(cumsum < x[6]) %>%
-  tail() %>%
-  select(distance)
-
-
+# A formal assessment of quantiles 
 sires %>% 
   group_by(iter) %>% 
   summarise(
-    i = seq(0.1, 1, 0.1),
-    q = quantile(distance, seq(0.1, 1, 0.1))
+    quantile = seq(0.1, 1, 0.1),
+    distance = quantile(distance, seq(0.1, 1, 0.1))
   ) %>% 
-  group_by(i) %>% 
+  group_by(quantile) %>% 
   summarise(
-    d = mean(q)
+    distance = mean(distance)
   )
 
 
 ```
 
+```{r calculate-mating-events-all-mothers, eval=F}
+#' Calculate observed and expected mating events in each deme for all mothers.
+#' Notice that this is flagged as `eval=FALSE` so that this does not need to be
+#' done every you knit this document; the next chunk imports the output from disk 
 
-```{r}
+set.seed(6)
 
-iter <- unique(sires$iter)
-
-mating_events <- vector('list', length(iter))
+iter <- unique(sires$iter) # Index MCMC iteration; it starts from 0 because Python
+mating_events_all_mothers <- vector('list', length(iter)) # Empty list to store results for each iteration
 
 # Initializes the progress bar
-pb <- txtProgressBar(min = 0, max = max(iter), style = 3) 
+pb <- txtProgressBar(min = 0, max = max(iter), style = 3)
+
+# Loop over iterations and count mating events for each
 for(i in iter){
   setTxtProgressBar(pb, i)
   
@@ -163,40 +138,161 @@ for(i in iter){
     ) 
   these_non_sires <- distance_df %>% 
     left_join(w, by = 'mother')
-  
+   
+  # Add a new column to give two locus genotypes
   these_sires$two_locus <- paste(these_sires$rosea, these_sires$sulfurea, sep = "_")
   these_non_sires$two_locus <- paste(these_non_sires$rosea, these_non_sires$sulfurea, sep = "_")
   
+  # Count the number of observed and simulated mating events in each spatial bin
   me <- cumulative_mating_events(
-    these_sires,# %>% filter(mother %in% this_colour),
-    these_non_sires,# %>% filter(mother %in% this_colour),
+    these_sires,
+    these_non_sires,
     bins = 'bins',
     phenotype = 'two_locus',
     weights = 'prob'
   )
   me$iter <- i
   
-  # send the output to mating_events.
+  # send the output to mating_events_all_mothers
   # The +1 is to account for Python counting from 0, not 1.
-  mating_events[[i + 1]] <- me
+  mating_events_all_mothers[[i + 1]] <- me
 }
 close(pb) # Close the connection
 
 # Glue the list together
-mating_events <- do.call('rbind', mating_events)
+mating_events_all_mothers <- do.call('rbind', mating_events_all_mothers)
+
+write_csv(
+  mating_events_all_mothers,
+  "005.results/14_mating_by_distance/mating_by_distance_all_mothers.csv"
+)
 ```
 
-```{r}
-library(stringr)
-sapply(str_extract_all(mating_events$bins, "-?[0-9.]+"), function(x) max(as.numeric(x)))
+```{r plot-mating-events-all-mothers}
 
+mating_events_all_mothers <- read_csv(
+  "005.results/14_mating_by_distance/mating_by_distance_all_mothers.csv",
+  col_types = 'fffddd'
+)
 
-mating_events %>% 
-  
+mating_events_all_mothers %>% 
   filter(
     phenotype != "NaN_NaN"
   ) %>% 
   group_by(type, bins, phenotype) %>% 
+  summarise(
+    lower = quantile(n_sires, 0.02),
+    upper = quantile(n_sires, 0.98),
+    .groups = 'drop'
+  ) %>% 
+  pivot_longer(lower:upper) %>% 
+  ggplot( aes(x= bins, y = value, colour = type, group = paste0(name,type)) ) +
+  geom_line() +
+  scale_x_discrete(labels=paste0("<",bins[-1])) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(
+    x = "Distance to father",
+    y = "Cumulative mating events"
+  ) +
+  facet_grid( ~phenotype)
+
+```
+
+
+```{r calculate-mating-by-maternal-phenotype, eval=F}
+#' Calculate observed and expected mating events in each deme separately for 
+#' parental hybrid mothers.
+#' Notice that this is flagged as `eval=FALSE` so that this does not need to be
+# done every you knit this document; the next chunk imports the output from disk 
+
+set.seed(18)
+
+# A super list to hold mating events for each phenotype class
+mating_by_mother <- vector('list', 3)
+names(mating_by_mother) <- c("FR", "hybrid", "Ye")
+
+for(colour in c("FR", "hybrid", "Ye")){
+  # A vector of names of mothers of the current phenotype
+  subset_names_by_colour <- py$am_data$flower_colours %>% 
+    filter (simple_colour == colour) %>% 
+    row.names()
+  # Keep only those entries in distance_df for which the mother is the right colour
+  these_plants <- distance_df %>% 
+    filter(mother %in% subset_names_by_colour)
+  
+  iter <- unique(sires$iter) # vector of iteration labels (from a table created in Python)
+  these_mating_events <- vector('list', length(iter)) # list to hold mating events for each iteration
+  
+  # Initializes the progress bar
+  pb <- txtProgressBar(min = 0, max = max(iter), style = 3) 
+  for(i in iter){
+    setTxtProgressBar(pb, i)
+    
+    # Mating events on the subset of mothers, for one iteration only.
+    these_sires <- sires %>%
+      filter(
+        iter == i,
+        mother %in% subset_names_by_colour
+      )
+    
+    # Add a weight to the data frame of distances to all males reflecting how many
+    # mating events came from each mother.
+    w <- these_sires %>% 
+      group_by(mother) %>% 
+      summarise(
+        prob = sum(prob)
+      ) %>% 
+      mutate(
+        prob = prob / max(prob)
+      ) 
+    these_non_sires <- distance_df %>% 
+      left_join(w, by = 'mother')
+    
+    # A vector of two-locus Ros/Sulf genotypes
+    these_sires$two_locus <- paste(these_sires$rosea, these_sires$sulfurea, sep = "_")
+    these_non_sires$two_locus <- paste(these_non_sires$rosea, these_non_sires$sulfurea, sep = "_")
+    
+    # Calculate mating events in each deme
+    me <- cumulative_mating_events(
+      these_sires,# %>% filter(mother %in% this_colour),
+      these_non_sires,# %>% filter(mother %in% this_colour),
+      bins = 'bins',
+      phenotype = 'two_locus',
+      weights = 'prob'
+    )
+    me$iter <- i
+    
+    # send the output to these_mating_events.
+    # The +1 is to account for Python counting from 0, not 1.
+    these_mating_events[[i + 1]] <- me
+  }
+  close(pb) # Close the connection
+  
+  # Glue the list together
+  these_mating_events <- do.call('rbind', these_mating_events)
+  these_mating_events$maternal_phenotype <- colour
+  
+  mating_by_mother[[colour]] <- these_mating_events
+}
+
+mating_by_mother <- do.call('rbind', mating_by_mother)
+
+write_csv(mating_by_mother, "005.results/14_mating_by_distance/mating_by_distance_by_maternal_phenotype.csv")
+
+```
+
+```{r plot-mating-by-maternal-phenotype}
+mating_by_mother <- read_csv(
+  "005.results/14_mating_by_distance/mating_by_distance_by_maternal_phenotype.csv",
+  col_types = 'fffdddf'
+  )
+
+
+mating_by_mother %>% 
+  filter(
+    phenotype != "NaN_NaN"
+  ) %>% 
+  group_by(type, bins, maternal_phenotype, phenotype) %>% 
   summarise(
     lower = quantile(cumsum, 0.02),
     upper = quantile(cumsum, 0.98),
@@ -211,17 +307,17 @@ mating_events %>%
   ) +
   scale_x_discrete(labels=paste0("<",bins[-1])) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  facet_grid( ~phenotype)
+  facet_grid(maternal_phenotype ~ phenotype)
 ```
 
-
 ```{r}
-
-mating_events %>% 
+# This plots the same as the previous plot, but on a standard scale, rather than the cumulative scale.
+# The assortment for yellow mothers goes away
+mating_by_mother %>% 
   filter(
     phenotype != "NaN_NaN"
   ) %>% 
-  group_by(type, bins, phenotype) %>% 
+  group_by(type, bins, maternal_phenotype, phenotype) %>% 
   summarise(
     lower = quantile(n_sires, 0.02),
     upper = quantile(n_sires, 0.98),
@@ -230,212 +326,14 @@ mating_events %>%
   pivot_longer(lower:upper) %>% 
   ggplot( aes(x= bins, y = value, colour = type, group = paste0(name,type)) ) +
   geom_line() +
-  # scale_y_log10() +
   labs(
-    x = "Distance",
-    y = "Number of mating events"
+    x = "Distance (m)",
+    y = "Cumulative number of mating events"
   ) +
-  # annotation_logticks(sides = "l") +
-  facet_grid( ~phenotype)
-
-```
-
-
-```{r}
-py$distance_df %>% 
-  mutate(
-    match = (simple_colour_father == simple_colour_mother),
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin) %>% 
-  summarise(
-    ass = mean(match, na.rm=TRUE),
-    n = n(),
-    distance = median(distance)
-  ) %>% 
-  ggplot(aes(x = distance, y = ass)) +
-  geom_point() +
+  scale_x_discrete(labels=paste0("<",bins[-1])) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  lims(
-    y = c(0,1)
-  )
-  
+  facet_grid(maternal_phenotype ~ phenotype)
 ```
 
 
-```{r}
-obs = tibble(py$obs)
-
-obs %>% 
-  arrange(distance) %>% 
-  mutate(
-    match = (rosea_father == rosea_mother),
-    bin = rep(letters[1:22], each= 10)
-    ) %>% 
-  group_by(bin) %>% 
-  summarise(
-    ass = mean(match, na.rm=TRUE),
-    dist = median(distance),
-    n = n()
-  ) %>% 
-  ggplot(aes(x = dist, y = ass)) +
-  geom_line()
-
-obs %>% 
-  mutate(
-    match = (simple_colour_father == simple_colour_mother),
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin) %>% 
-  summarise(
-    ass = mean(match, na.rm=TRUE),
-    n = n(), 
-    distance = median(distance)
-  ) %>% 
-  ggplot(aes(x = distance, y = ass)) +
-  geom_point() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-```{r}
-obs %>% 
-  mutate(
-    match = (simple_colour_father == simple_colour_mother),
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin, simple_colour_father) %>% 
-  summarise(
-    # mean = mean(na.rm=TRUE),
-    n = n(), 
-    distance = median(distance)
-  ) %>% 
-  group_by(simple_colour_father) %>% 
-  group_split() %>% 
-  lapply(., function(x) x %>% mutate(cum = cumsum(x$n))) %>% 
-  do.call(what = 'rbind') %>% 
-  ggplot(aes(x = bin, y = cum, colour = simple_colour_father, group = simple_colour_father)) +
-  geom_point() +
-  geom_line() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-
-
-obs %>% 
-  mutate(
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin, simple_colour_father) %>% 
-  summarise(
-    n = n(), 
-    distance = median(distance)
-    ) %>% 
-  group_by(bin, .drop = FALSE) %>% 
-  summarise(
-    simple_colour_father = simple_colour_father,
-    distance = distance,
-    n = n,
-    norm = n / sum(n),
-    .groups = 'drop'
-  ) %>% 
-  group_by(simple_colour_father) %>% 
-  group_split() %>% 
-  lapply(., function(x) x %>% mutate(cum = cumsum(x$norm))) %>% 
-  do.call(what = 'rbind') %>% 
-  mutate(cum = cum/ max(cum)) %>% 
-  ggplot(aes(x = distance, y = cum, colour = simple_colour_father, group = simple_colour_father)) +
-  geom_point() +
-  geom_line() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-```
-
-```{r}
-py$distance_df %>% 
-  filter(simple_colour_father != "unkown") %>% 
-  mutate(
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin, simple_colour_father, .drop = FALSE) %>% 
-  summarise(
-    n = n(), 
-    distance = median(distance),
-    .groups = 'drop'
-    ) %>% 
-  group_by(bin) %>% 
-  summarise(
-    simple_colour_father = simple_colour_father,
-    distance = distance,
-    n = n,
-    norm = n / sum(n),
-    .groups = 'drop'
-  ) %>% 
-  group_by(simple_colour_father) %>% 
-  group_split() %>% 
-  lapply(., function(x) x %>% mutate(cum = cumsum(x$n))) %>% 
-  do.call(what = 'rbind') %>% 
-  mutate(cum = cum/ max(cum)) %>% 
-  ggplot(aes(x = distance, y = cum, colour = simple_colour_father, group = simple_colour_father)) +
-  geom_point() +
-  geom_line() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-  
-```
-
-
-```{r}
-
-obs %>% 
-  mutate(
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin, simple_colour_father, simple_colour_mother) %>% 
-  summarise(
-    n = n(), 
-    distance = median(distance)
-  ) %>% 
-  mutate(
-    phen = paste0(simple_colour_father,simple_colour_mother)
-  ) %>% 
-  ggplot( aes(
-      x = bin, y = n,
-      colour = simple_colour_father,
-      shape = simple_colour_mother,
-      group = phen
-    )) +
-      geom_point() +
-  geom_line() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-
-obs %>% 
-  mutate(
-    bin = cut(distance, seq(0,2000,100))
-    ) %>% 
-  group_by(bin, simple_colour_father, simple_colour_mother) %>% 
-  summarise(
-    n = n(), 
-    distance = median(distance)
-  ) %>% 
-  group_by(bin) %>% 
-  summarise(
-    simple_colour_father = simple_colour_father,
-    simple_colour_mother = simple_colour_mother,
-    n = n,
-    norm = n / sum(n),
-    .groups = 'drop'
-  ) %>% 
-  mutate(
-    phen = paste0(simple_colour_father,simple_colour_mother)
-  ) %>% 
-  ggplot( aes(
-      x = bin, y = norm,
-      colour = simple_colour_father,
-      shape = simple_colour_mother,
-      group = phen
-    )) +
-      geom_point() +
-  geom_line() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
 

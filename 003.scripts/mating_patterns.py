@@ -16,6 +16,7 @@ burnin = 500
 # FAPS objects and distance matrices are generated in a separate script.
 exec(open('003.scripts/setup_FAPS_GPS.py').read())
 
+
 folder = "005.results/00*_mcmc_restrict_kurtosis/output/"
 
 data = am_data
